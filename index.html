@@ -729,11 +729,11 @@ async function carregarReunioes(){
   const { data, error } = await sb.from('crm_interacoes').select('*').eq('tipo','reuniao').order('data');
   const doHistorico = error ? [] : (data||[]).map(i=>{
     const contato = CONTATOS.find(c=>c.id===i.contato_id);
-    return { data: i.data, hora: null, contato_id: i.contato_id, contato_nome: contato ? contato.nome : 'Contato removido', resumo: i.resumo, autor: i.autor };
+    return { fonte:'historico', data: i.data, hora: null, contato_id: i.contato_id, contato_nome: contato ? contato.nome : 'Contato removido', resumo: i.resumo, autor: i.autor };
   });
 
   const agendadas = CONTATOS.filter(c=>c.reuniao_data).map(c=>({
-    data: c.reuniao_data, hora: c.reuniao_hora, contato_id: c.id, contato_nome: c.nome,
+    fonte:'agendada', data: c.reuniao_data, hora: c.reuniao_hora, contato_id: c.id, contato_nome: c.nome,
     resumo: c.reuniao_hora ? `Reunião agendada às ${c.reuniao_hora}` : 'Reunião agendada', autor: c.reuniao_autor || null
   }));
 
@@ -795,12 +795,23 @@ function renderAgendaDiaDetalhe(){
     <div class="agenda-dia-card">
       <div style="font-weight:600; font-size:13px; margin-bottom:8px;">${fmtData(AGENDA_DIA_SELECIONADO)}</div>
       ${doDia.length ? doDia.map(r=>`
-        <div class="tl-item" onclick="abrirDetalhe('${r.contato_id}')" style="cursor:pointer;">
-          <div class="tl-top"><span class="tl-autor">${r.hora ? r.hora+' · ' : ''}${escapeHtml(r.contato_nome)}</span><span>${escapeHtml(r.autor||'')}</span></div>
-          <div class="tl-resumo">${escapeHtml(r.resumo||'')}</div>
+        <div class="tl-item">
+          <div class="tl-top" style="cursor:pointer;" onclick="abrirDetalhe('${r.contato_id}')"><span class="tl-autor">${r.hora ? r.hora+' · ' : ''}${escapeHtml(r.contato_nome)}</span><span>${escapeHtml(r.autor||'')}</span></div>
+          <div class="tl-resumo" style="cursor:pointer;" onclick="abrirDetalhe('${r.contato_id}')">${escapeHtml(r.resumo||'')}</div>
+          ${r.fonte==='agendada' ? `<button class="btn small" style="background:#fff; color:var(--coral); border-color:var(--coral); margin-top:6px;" onclick="cancelarReuniaoDireto('${r.contato_id}')">Cancelar reunião</button>` : ''}
         </div>
       `).join('') : '<div class="empty">Nenhuma reunião nesse dia.</div>'}
     </div>`;
+}
+
+async function cancelarReuniaoDireto(contatoId){
+  if(!confirm('Cancelar esta reunião agendada?')) return;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: null, reuniao_hora: null, reuniao_autor: null }).eq('id', contatoId);
+  if(error){ toast('Erro ao cancelar reunião'); console.error(error); return; }
+  toast('Reunião cancelada');
+  await carregarContatos();
+  await carregarReunioes();
+  renderAgenda();
 }
 
 // ---------- Novo contato ----------
@@ -822,7 +833,10 @@ async function salvarNovoContato(){
     telefone: document.getElementById('nc-telefone').value.trim() || null,
     email: document.getElementById('nc-email').value.trim() || null,
     observacoes: document.getElementById('nc-obs').value.trim() || null,
-    proximo_followup: document.getElementById('nc-followup').value || null
+    proximo_followup: document.getElementById('nc-followup').value || null,
+    ultima_interacao_data: todayISO(),
+    ultima_interacao_resumo: 'Contato cadastrado',
+    ultima_interacao_autor: USUARIO_ATUAL || null
   };
   const { error } = await sb.from('crm_contatos').insert(payload);
   if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
