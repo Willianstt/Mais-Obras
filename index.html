@@ -416,8 +416,8 @@
       <div class="field"><label>WhatsApp</label><input id="det-telefone" onblur="atualizarTelefone()"></div>
     </div>
 
-    <div class="lembrete-box" id="reuniao-box" style="display:none; background:var(--green-soft);">
-      <div class="field" style="flex:1;">
+    <div class="lembrete-box" id="reuniao-box" style="display:none; background:var(--green-soft); flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:120px;">
         <label style="color:var(--green);">📅 Data da reunião</label>
         <input type="date" id="det-reuniao-data">
       </div>
@@ -426,6 +426,7 @@
         <input type="time" id="det-reuniao-hora">
       </div>
       <button class="btn primary small" style="background:var(--green); border-color:var(--green);" onclick="salvarReuniao()">Salvar</button>
+      <button class="btn small" style="background:#fff; color:var(--coral); border-color:var(--coral);" onclick="cancelarReuniao()">Cancelar reunião</button>
     </div>
 
     <div class="lembrete-box">
@@ -896,6 +897,20 @@ async function salvarReuniao(){
   CONTATO_ATIVO.reuniao_hora = hora;
   CONTATO_ATIVO.reuniao_autor = autor;
   toast('Reunião salva');
+  carregarContatos();
+}
+
+async function cancelarReuniao(){
+  if(!CONTATO_ATIVO) return;
+  if(!confirm('Cancelar esta reunião agendada?')) return;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: null, reuniao_hora: null, reuniao_autor: null }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao cancelar reunião'); console.error(error); return; }
+  CONTATO_ATIVO.reuniao_data = null;
+  CONTATO_ATIVO.reuniao_hora = null;
+  CONTATO_ATIVO.reuniao_autor = null;
+  document.getElementById('det-reuniao-data').value = '';
+  document.getElementById('det-reuniao-hora').value = '';
+  toast('Reunião cancelada');
   carregarContatos();
 }
 
