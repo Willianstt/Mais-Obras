@@ -97,14 +97,20 @@
   .agenda-dow{ text-align:center; font-size:10.5px; font-weight:600; color:var(--ink-soft); padding-bottom:4px; }
   .agenda-day{
     aspect-ratio:1; border-radius:8px; border:1px solid var(--line); background:var(--paper-card);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-    cursor:pointer; font-size:12.5px; color:var(--ink); position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    cursor:pointer; font-size:12.5px; color:var(--ink); position:relative; padding:2px;
+    overflow:hidden;
   }
   .agenda-day.vazio{ visibility:hidden; cursor:default; }
   .agenda-day.hoje{ border-color:var(--blue); border-width:2px; font-weight:700; }
   .agenda-day.selecionado{ background:var(--blue); color:#fff; border-color:var(--blue); }
-  .agenda-day .pt{ width:5px; height:5px; border-radius:50%; background:var(--green); }
-  .agenda-day.selecionado .pt{ background:#fff; }
+  .agenda-day.tem-reuniao{ background:var(--green-soft); border-color:var(--green); }
+  .agenda-day.tem-reuniao.selecionado{ background:var(--green); border-color:var(--green); }
+  .agenda-day .reuniao-nome{
+    font-size:7.5px; font-weight:600; color:var(--green); text-transform:uppercase; letter-spacing:0.02em;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .agenda-day.selecionado .reuniao-nome{ color:#fff; }
   .agenda-dia-card{
     background:var(--paper-card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
   }
@@ -727,7 +733,7 @@ async function carregarReunioes(){
 
   const agendadas = CONTATOS.filter(c=>c.reuniao_data).map(c=>({
     data: c.reuniao_data, hora: c.reuniao_hora, contato_id: c.id, contato_nome: c.nome,
-    resumo: c.reuniao_hora ? `Reunião agendada às ${c.reuniao_hora}` : 'Reunião agendada', autor: null
+    resumo: c.reuniao_hora ? `Reunião agendada às ${c.reuniao_hora}` : 'Reunião agendada', autor: c.reuniao_autor || null
   }));
 
   AGENDA_REUNIOES = [...doHistorico, ...agendadas];
@@ -758,11 +764,17 @@ function renderAgenda(){
 
   for(let d=1; d<=ultimoDia.getDate(); d++){
     const iso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const temReuniao = AGENDA_REUNIOES.some(r=>r.data===iso);
+    const reunioesDoDia = AGENDA_REUNIOES.filter(r=>r.data===iso);
     const classes = ['agenda-day'];
+    if(reunioesDoDia.length) classes.push('tem-reuniao');
     if(iso===hoje) classes.push('hoje');
     if(iso===AGENDA_DIA_SELECIONADO) classes.push('selecionado');
-    html += `<div class="${classes.join(' ')}" onclick="selecionarDiaAgenda('${iso}')">${d}${temReuniao?'<span class="pt"></span>':''}</div>`;
+    let nomeLabel = '';
+    if(reunioesDoDia.length){
+      const nomes = [...new Set(reunioesDoDia.map(r=>r.autor).filter(Boolean))];
+      nomeLabel = nomes.length ? escapeHtml(nomes.join(', ')) : '';
+    }
+    html += `<div class="${classes.join(' ')}" onclick="selecionarDiaAgenda('${iso}')">${d}${nomeLabel?`<span class="reuniao-nome">${nomeLabel}</span>`:''}</div>`;
   }
   document.getElementById('agenda-grid').innerHTML = html;
   renderAgendaDiaDetalhe();
@@ -877,10 +889,12 @@ async function salvarReuniao(){
   if(!CONTATO_ATIVO) return;
   const data = document.getElementById('det-reuniao-data').value || null;
   const hora = document.getElementById('det-reuniao-hora').value || null;
-  const { error } = await sb.from('crm_contatos').update({ reuniao_data: data, reuniao_hora: hora }).eq('id', CONTATO_ATIVO.id);
+  const autor = USUARIO_ATUAL || null;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: data, reuniao_hora: hora, reuniao_autor: autor }).eq('id', CONTATO_ATIVO.id);
   if(error){ toast('Erro ao salvar reunião'); console.error(error); return; }
   CONTATO_ATIVO.reuniao_data = data;
   CONTATO_ATIVO.reuniao_hora = hora;
+  CONTATO_ATIVO.reuniao_autor = autor;
   toast('Reunião salva');
   carregarContatos();
 }
