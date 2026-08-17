@@ -101,13 +101,11 @@
     letter-spacing:0.06em; border:1.5px dashed currentColor; border-radius:5px; padding:3px 7px;
     transform:rotate(-3deg); white-space:nowrap; flex-shrink:0;
   }
-  .stamp.novo{ color:var(--ink-soft); }
-  .stamp.contatado{ color:var(--blue); }
-  .stamp.aguardando_resposta{ color:var(--amber); }
-  .stamp.interessado{ color:var(--blue); }
-  .stamp.negociando{ color:var(--amber); }
-  .stamp.convertido{ color:var(--green); }
-  .stamp.sem_interesse{ color:var(--coral); }
+  .stamp.aguardando{ color:var(--amber); }
+  .stamp.agendado{ color:var(--blue); }
+  .stamp.potencial_futuro{ color:var(--ink-soft); }
+  .stamp.acompanhamento{ color:var(--blue); }
+  .stamp.potencial_cliente{ color:var(--green); }
 
   .card-actions{ display:flex; gap:8px; margin-top:10px; }
   .btn{
@@ -307,13 +305,11 @@
       </div>
       <div class="field"><label>Status</label>
         <select id="nc-status">
-          <option value="novo">Novo</option>
-          <option value="contatado">Contatado</option>
-          <option value="aguardando_resposta">Aguardando</option>
-          <option value="interessado">Interessado</option>
-          <option value="negociando">Negociando</option>
-          <option value="convertido">Convertido</option>
-          <option value="sem_interesse">Sem interesse</option>
+          <option value="aguardando">Aguardando</option>
+          <option value="agendado">Agendado</option>
+          <option value="potencial_futuro">Potencial futuro</option>
+          <option value="acompanhamento">Acompanhamento</option>
+          <option value="potencial_cliente">Potencial cliente</option>
         </select>
       </div>
     </div>
@@ -340,13 +336,11 @@
     <div class="row2">
       <div class="field"><label>Status</label>
         <select id="det-status" onchange="atualizarStatus()">
-          <option value="novo">Novo</option>
-          <option value="contatado">Contatado</option>
-          <option value="aguardando_resposta">Aguardando</option>
-          <option value="interessado">Interessado</option>
-          <option value="negociando">Negociando</option>
-          <option value="convertido">Convertido</option>
-          <option value="sem_interesse">Sem interesse</option>
+          <option value="aguardando">Aguardando</option>
+          <option value="agendado">Agendado</option>
+          <option value="potencial_futuro">Potencial futuro</option>
+          <option value="acompanhamento">Acompanhamento</option>
+          <option value="potencial_cliente">Potencial cliente</option>
         </select>
       </div>
       <div class="field"><label>WhatsApp</label><input id="det-telefone" onblur="atualizarTelefone()"></div>
@@ -456,8 +450,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const TIPO_LABEL = { corretor:"Corretor", arquiteto:"Arquiteto", conhecido:"Conhecido", outro:"Outro" };
 const STATUS_LABEL = {
-  novo:"Novo", contatado:"Contatado", aguardando_resposta:"Aguardando resposta",
-  interessado:"Interessado", negociando:"Negociando", convertido:"Convertido", sem_interesse:"Sem interesse"
+  aguardando:"Aguardando", agendado:"Agendado", potencial_futuro:"Potencial futuro",
+  acompanhamento:"Acompanhamento", potencial_cliente:"Potencial cliente"
 };
 
 let CONTATOS = [];
@@ -625,7 +619,7 @@ function renderNotificacoes(){
 function abrirNovoContato(){
   ['nc-nome','nc-empresa','nc-telefone','nc-email','nc-obs','nc-followup'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('nc-tipo').value = CATEGORIA_DEFAULT_TIPO || 'corretor';
-  document.getElementById('nc-status').value = 'novo';
+  document.getElementById('nc-status').value = 'aguardando';
   document.getElementById('overlay-novo').classList.add('show');
 }
 
