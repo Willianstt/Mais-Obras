@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Rede de Contatos — Consttruir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#EEF1EF;
+    --paper-card:#F8F9F7;
+    --ink:#16262B;
+    --ink-soft:#516266;
+    --blue:#2E6F8E;
+    --blue-soft:#DCE8ED;
+    --amber:#C77D2E;
+    --amber-soft:#F3E3D1;
+    --coral:#B9483D;
+    --coral-soft:#F3DBD8;
+    --green:#4C7A5E;
+    --green-soft:#DCE7DF;
+    --line:#CBD3CE;
+    --shadow: 0 1px 2px rgba(22,38,43,0.06), 0 4px 14px rgba(22,38,43,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{ font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em; }
+  .mono{ font-family:'IBM Plex Mono', monospace; letter-spacing:0.01em; }
+
+  header.top{
+    padding:22px 18px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; gap:12px;
+  }
+  header.top button.back{
+    border:none; background:none; font-size:20px; color:var(--ink);
+    cursor:pointer; padding:2px 4px; display:none;
+  }
+  header.top button.back.show{ display:block; }
+  header.top .titles h1{ font-size:19px; font-weight:700; margin:0; }
+  header.top .titles p{ margin:2px 0 0; font-size:12px; color:var(--ink-soft); }
+
+  main{ padding:16px 18px 60px; max-width:640px; margin:0 auto; }
+
+  /* ---- Home ---- */
+  .cat-grid{ display:flex; flex-direction:column; gap:14px; padding-top:6px; }
+  .cat-tile{
+    --cat-color: var(--blue);
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; text-align:left; border:none; cursor:pointer;
+    background:var(--paper-card);
+    border:1.5px solid var(--line);
+    border-left:6px solid var(--cat-color);
+    border-radius:12px;
+    padding:26px 22px;
+    box-shadow:var(--shadow);
+  }
+  .cat-tile .cat-label{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:21px; color:var(--ink); }
+  .cat-tile .cat-count{
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px;
+    color:var(--cat-color);
+    background:color-mix(in srgb, var(--cat-color) 14%, white);
+    border-radius:20px; padding:5px 14px; min-width:36px; text-align:center;
+  }
+  .cat-tile:active{ transform:translateY(1px); }
+
+  /* ---- Lista ---- */
+  .list-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .list-header h2{ margin:0; font-size:16px; }
+  .searchbar{ display:flex; gap:8px; margin-bottom:14px; }
+  .searchbar input{
+    flex:1; border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; font-size:13.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff;
+  }
+
+  .empty{ font-size:13px; color:var(--ink-soft); padding:14px 0; border-top:1px dashed var(--line); }
+
+  .card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 14px 12px; margin-bottom:10px; box-shadow:var(--shadow); position:relative; cursor:pointer;
+  }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .card-name{ font-weight:600; font-size:15px; }
+  .card-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .card-meta span + span::before{ content:"·"; margin:0 5px; color:var(--line); }
+
+  .stamp{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.06em; border:1.5px dashed currentColor; border-radius:5px; padding:3px 7px;
+    transform:rotate(-3deg); white-space:nowrap; flex-shrink:0;
+  }
+  .stamp.aguardando{ color:var(--amber); }
+  .stamp.agendado{ color:var(--blue); }
+  .stamp.potencial_futuro{ color:var(--ink-soft); }
+  .stamp.acompanhamento{ color:var(--blue); }
+  .stamp.potencial_cliente{ color:var(--green); }
+
+  .card-actions{ display:flex; gap:8px; margin-top:10px; }
+  .btn{
+    font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:12.5px;
+    border-radius:7px; border:1px solid var(--line); background:#fff;
+    padding:8px 10px; cursor:pointer; color:var(--ink); display:inline-flex; align-items:center; gap:5px;
+  }
+  .btn.primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .btn.whatsapp{ background:var(--green-soft); border-color:var(--green); color:var(--green); }
+  .btn.ghost{ background:none; }
+  .btn.small{ padding:6px 9px; font-size:11.5px; }
+  .btn:active{ transform:translateY(1px); }
+  .btn-add{
+    border:none; background:var(--blue); color:#fff; border-radius:8px;
+    padding:9px 14px; font-weight:600; font-size:13px; cursor:pointer;
+  }
+
+  .fab{
+    position:fixed; right:20px; bottom:24px; z-index:30;
+    width:54px; height:54px; border-radius:50%;
+    background:var(--blue); color:#fff; border:none;
+    font-size:26px; box-shadow:0 6px 18px rgba(46,111,142,0.4);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(22,38,43,0.45);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background:var(--paper); width:100%; max-width:640px;
+    border-radius:16px 16px 0 0; padding:18px 18px 26px;
+    max-height:90vh; overflow-y:auto; position:relative;
+  }
+  .sheet h3{ margin:0 0 14px; font-size:17px; }
+  .det-nome-input{
+    display:block; width:100%; font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:19px; color:var(--ink); border:1px solid transparent; border-bottom:1px dashed var(--line);
+    background:none; padding:4px 2px; margin:0 0 6px -2px; border-radius:6px;
+  }
+  .det-nome-input:focus{ outline:none; border:1px solid var(--blue); background:#fff; }
+  .field{ margin-bottom:12px; }
+  .field label{
+    display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:5px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:10px 11px; font-size:14px; font-family:'IBM Plex Sans',sans-serif;
+    background:#fff; color:var(--ink);
+  }
+  .field textarea{ min-height:70px; resize:vertical; }
+  .row2{ display:flex; gap:10px; }
+  .row2 .field{ flex:1; }
+  .sheet-actions{ display:flex; gap:10px; margin-top:16px; }
+  .sheet-actions .btn{ flex:1; justify-content:center; padding:11px; font-size:13.5px; }
+  .close-x{ position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; color:var(--ink-soft); cursor:pointer; }
+
+  .divider{ border-top:1px dashed var(--line); margin:16px 0 12px; }
+
+  .timeline{ margin:6px 0 14px; }
+  .tl-item{ padding:9px 0; border-bottom:1px solid var(--line); }
+  .tl-item:last-child{ border-bottom:none; }
+  .tl-top{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--ink-soft); }
+  .tl-top .mono{ font-size:11px; }
+  .tl-resumo{ font-size:13.5px; margin-top:3px; }
+  .tl-autor{ font-weight:600; color:var(--ink); }
+  .tl-actions{ display:flex; gap:4px; }
+  .tl-actions button{
+    border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-soft);
+    padding:2px 5px; border-radius:5px;
+  }
+  .tl-actions button:hover{ background:var(--paper); }
+  .tl-edit-form{ margin-top:6px; padding:10px; background:var(--paper); border-radius:8px; }
+  .tl-edit-form textarea{ width:100%; min-height:56px; font-size:13px; border:1px solid var(--line); border-radius:6px; padding:7px; font-family:'IBM Plex Sans',sans-serif; margin-bottom:8px; }
+  .tl-edit-form .row2{ margin-bottom:8px; }
+  .tl-edit-form select{ font-size:12.5px; padding:7px; border:1px solid var(--line); border-radius:6px; }
+  .tl-edit-actions{ display:flex; gap:8px; }
+
+  .lembrete-box{
+    background:var(--blue-soft); border-radius:10px; padding:12px 14px; margin-bottom:16px;
+    display:flex; align-items:flex-end; gap:10px;
+  }
+  .lembrete-box .field{ margin:0; flex:1; }
+  .lembrete-box label{ color:var(--blue); }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px;
+    font-size:13px; z-index:60; opacity:0; transition:opacity .25s; pointer-events:none;
+    max-width:90vw; text-align:center;
+  }
+  .toast.show{ opacity:1; }
+
+  .notif-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:13px 0; border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .notif-row:last-child{ border-bottom:none; }
+  .notif-name{ font-weight:600; font-size:14.5px; }
+  .notif-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .notif-date{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;
+    border-radius:16px; padding:5px 11px; white-space:nowrap;
+  }
+  .notif-date.atrasado{ background:var(--coral-soft); color:var(--coral); }
+  .notif-date.hoje{ background:var(--amber-soft); color:var(--amber); }
+  .notif-date.futuro{ background:var(--paper-card); color:var(--ink-soft); border:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <button class="back" id="btn-back" onclick="voltarHome()">←</button>
+  <div class="titles">
+    <h1 id="header-title">Rede de Contatos</h1>
+    <p id="header-sub">Corretores, arquitetos e conhecidos — divulgação Consttruir</p>
+  </div>
+  <button class="back show" id="btn-logout" style="display:none; margin-left:auto;" onclick="sair()" title="Sair">⏻</button>
+</header>
+
+<div id="view-login" style="display:none;">
+  <div style="max-width:360px; margin:70px auto 0; padding:0 22px;">
+    <h1 style="font-size:22px; margin-bottom:4px;">Rede de Contatos</h1>
+    <p style="color:var(--ink-soft); font-size:13px; margin-bottom:26px;">Entre com seu nome pra continuar</p>
+    <div class="field"><label>Nome</label>
+      <select id="login-nome">
+        <option value="Willian">Willian</option>
+        <option value="Carlos">Carlos</option>
+        <option value="Jeanquiel">Jeanquiel</option>
+        <option value="Cristiam">Cristiam</option>
+      </select>
+    </div>
+    <div class="field"><label>Senha</label><input type="password" id="login-senha" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
+    <button class="btn primary" style="width:100%; justify-content:center; padding:11px; margin-top:6px;" onclick="fazerLogin()">Entrar</button>
+    <p id="login-erro" style="color:var(--coral); font-size:12.5px; margin-top:10px; display:none;">Senha incorreta.</p>
+  </div>
+</div>
+
+<main id="app-main" style="display:none;">
+
+  <div id="view-home">
+    <div class="cat-grid">
+      <button class="cat-tile" style="--cat-color:var(--blue)" onclick="abrirLista('corretor','Corretores')">
+        <span class="cat-label">Corretores</span>
+        <span class="cat-count" id="count-corretor">0</span>
+      </button>
+      <button class="cat-tile" style="--cat-color:var(--amber)" onclick="abrirLista('arquiteto','Arquitetos')">
+        <span class="cat-label">Arquitetos</span>
+        <span class="cat-count" id="count-arquiteto">0</span>
+      </button>
+      <button class="cat-tile" style="--cat-color:var(--green)" onclick="abrirLista(['conhecido','outro'],'Outros contatos')">
+        <span class="cat-label">Outros contatos</span>
+        <span class="cat-count" id="count-outros">0</span>
+      </button>
+      <button class="cat-tile" style="--cat-color:var(--coral)" onclick="abrirNotificacoes()">
+        <span class="cat-label">Notificações</span>
+        <span class="cat-count" id="count-notif">0</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="view-lista" style="display:none;">
+    <div class="list-header">
+      <h2 id="lista-titulo">Contatos</h2>
+      <button class="btn-add" onclick="abrirNovoContato()">+ Novo contato</button>
+    </div>
+    <div class="searchbar">
+      <input type="text" id="busca" placeholder="Buscar por nome ou empresa...">
+    </div>
+    <div id="lista-contatos"></div>
+  </div>
+
+  <div id="view-notificacoes" style="display:none;">
+    <div class="card" style="padding:4px 14px;">
+      <div id="lista-notificacoes"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Modal: novo contato -->
+<div class="overlay" id="overlay-novo">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-novo')">✕</button>
+    <h3>Novo contato</h3>
+    <div class="field"><label>Nome*</label><input id="nc-nome"></div>
+    <div class="row2">
+      <div class="field"><label>Tipo</label>
+        <select id="nc-tipo">
+          <option value="corretor">Corretor</option>
+          <option value="arquiteto">Arquiteto</option>
+          <option value="conhecido">Conhecido</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="nc-status">
+          <option value="aguardando">Aguardando</option>
+          <option value="agendado">Agendado</option>
+          <option value="potencial_futuro">Potencial futuro</option>
+          <option value="acompanhamento">Acompanhamento</option>
+          <option value="potencial_cliente">Potencial cliente</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Empresa / Imobiliária</label><input id="nc-empresa"></div>
+    <div class="row2">
+      <div class="field"><label>WhatsApp</label><input id="nc-telefone" placeholder="49 9 9999-9999"></div>
+      <div class="field"><label>E-mail</label><input id="nc-email"></div>
+    </div>
+    <div class="field"><label>Observações</label><textarea id="nc-obs"></textarea></div>
+    <div class="field"><label>Me lembrar em</label><input type="date" id="nc-followup"></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarNovoContato()">Salvar contato</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: detalhe / interação -->
+<div class="overlay" id="overlay-detalhe">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-detalhe')">✕</button>
+    <input id="det-nome" class="det-nome-input" onblur="atualizarNome()" onkeydown="if(event.key==='Enter') this.blur()">
+    <div class="card-meta" id="det-meta" style="margin-bottom:14px;"></div>
+
+    <div class="row2">
+      <div class="field"><label>Status</label>
+        <select id="det-status" onchange="atualizarStatus()">
+          <option value="aguardando">Aguardando</option>
+          <option value="agendado">Agendado</option>
+          <option value="potencial_futuro">Potencial futuro</option>
+          <option value="acompanhamento">Acompanhamento</option>
+          <option value="potencial_cliente">Potencial cliente</option>
+        </select>
+      </div>
+      <div class="field"><label>WhatsApp</label><input id="det-telefone" onblur="atualizarTelefone()"></div>
+    </div>
+
+    <div class="lembrete-box">
+      <div class="field">
+        <label>🔔 Me lembrar de chamar de novo em</label>
+        <input type="date" id="det-lembrete">
+      </div>
+      <button class="btn primary small" onclick="salvarLembrete()">Salvar</button>
+    </div>
+
+    <div class="divider"></div>
+    <h3 style="font-size:14px; margin-bottom:2px;">Histórico</h3>
+    <div class="timeline" id="det-timeline"></div>
+
+    <div class="divider"></div>
+    <h3 style="font-size:14px;">Registrar nova atualização</h3>
+    <div class="row2">
+      <div class="field"><label>Quem fez o contato</label>
+        <select id="ni-autor">
+          <option value="Willian">Willian</option>
+          <option value="Carlos">Carlos</option>
+          <option value="Jeanquiel">Jeanquiel</option>
+          <option value="Cristiam">Cristiam</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipo</label>
+        <select id="ni-tipo">
+          <option value="whatsapp">WhatsApp</option>
+          <option value="ligacao">Ligação</option>
+          <option value="reuniao">Reunião</option>
+          <option value="email">E-mail</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Resumo</label><textarea id="ni-resumo" placeholder="O que foi conversado..."></textarea></div>
+    <div class="field"><label>Próximo lembrete (opcional)</label><input type="date" id="ni-followup"></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarInteracao()">Salvar atualização</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fab-add" style="display:none;" onclick="abrirNovoContato()">+</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== LOGIN ======
+const USUARIOS = {
+  "Willian": "willian123",
+  "Carlos": "carlos123",
+  "Jeanquiel": "jeanquiel123",
+  "Cristiam": "cristiam123"
+};
+let USUARIO_ATUAL = null;
+
+function fazerLogin(){
+  const nome = document.getElementById('login-nome').value;
+  const senha = document.getElementById('login-senha').value;
+  if(USUARIOS[nome] === senha){
+    USUARIO_ATUAL = nome;
+    localStorage.setItem('crm_usuario', nome);
+    document.getElementById('login-erro').style.display = 'none';
+    iniciarApp();
+  } else {
+    document.getElementById('login-erro').style.display = 'block';
+  }
+}
+
+function sair(){
+  localStorage.removeItem('crm_usuario');
+  USUARIO_ATUAL = null;
+  document.getElementById('view-login').style.display = 'block';
+  document.getElementById('app-main').style.display = 'none';
+  document.getElementById('header-title').textContent = 'Rede de Contatos';
+  document.getElementById('header-sub').textContent = 'Corretores, arquitetos e conhecidos — divulgação Consttruir';
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('btn-back').classList.remove('show');
+  document.getElementById('login-senha').value = '';
+}
+
+function iniciarApp(){
+  document.getElementById('view-login').style.display = 'none';
+  document.getElementById('app-main').style.display = 'block';
+  document.getElementById('btn-logout').style.display = 'block';
+  mostrarView('home');
+  carregarContatos();
+}
+
+(function tentarSessaoSalva(){
+  const salvo = localStorage.getItem('crm_usuario');
+  if(salvo && USUARIOS[salvo]){
+    USUARIO_ATUAL = salvo;
+  } else {
+    document.getElementById('view-login').style.display = 'block';
+  }
+})();
+
+// ====== CONFIG SUPABASE ======
+const SUPABASE_URL = "https://kyfbrtpkqeipwiuwhpnm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ImaXU_FzamLLgW9JnzFrXg_9n9O0Z2p";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const TIPO_LABEL = { corretor:"Corretor", arquiteto:"Arquiteto", conhecido:"Conhecido", outro:"Outro" };
+const STATUS_LABEL = {
+  aguardando:"Aguardando", agendado:"Agendado", potencial_futuro:"Potencial futuro",
+  acompanhamento:"Acompanhamento", potencial_cliente:"Potencial cliente"
+};
+
+let CONTATOS = [];
+let CONTATO_ATIVO = null;
+let INTERACOES_ATIVAS = [];
+let EDITANDO_INTERACAO_ID = null;
+let CATEGORIA_ATIVA = null; // string ou array de tipos
+let CATEGORIA_DEFAULT_TIPO = "conhecido"; // usado ao criar contato dentro de "Outros"
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function diasDesde(dataStr){
+  if(!dataStr) return null;
+  const d = new Date(dataStr + "T00:00:00");
+  const hoje = new Date(todayISO() + "T00:00:00");
+  return Math.round((hoje - d) / 86400000);
+}
+
+function toast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), ms || 1800);
+}
+
+function fmtData(d){
+  if(!d) return "—";
+  const [y,m,day] = d.split("-");
+  return `${day}/${m}/${y}`;
+}
+
+function whatsappLink(tel){
+  if(!tel) return null;
+  let digits = tel.replace(/\D/g,"");
+  if(digits.length <= 11) digits = "55" + digits;
+  return `https://wa.me/${digits}`;
+}
+
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Navegação ----------
+function mostrarView(view){
+  document.getElementById('view-home').style.display = view==='home' ? 'block':'none';
+  document.getElementById('view-lista').style.display = view==='lista' ? 'block':'none';
+  document.getElementById('view-notificacoes').style.display = view==='notificacoes' ? 'block':'none';
+  document.getElementById('btn-back').classList.toggle('show', view!=='home');
+  document.getElementById('fab-add').style.display = view==='lista' ? 'none' : 'none';
+}
+
+function voltarHome(){
+  mostrarView('home');
+  document.getElementById('header-title').textContent = 'Rede de Contatos';
+  document.getElementById('header-sub').textContent = 'Corretores, arquitetos e conhecidos — divulgação Consttruir';
+}
+
+function abrirLista(tipo, label){
+  CATEGORIA_ATIVA = tipo;
+  CATEGORIA_DEFAULT_TIPO = Array.isArray(tipo) ? 'conhecido' : tipo;
+  document.getElementById('lista-titulo').textContent = label;
+  document.getElementById('header-title').textContent = label;
+  document.getElementById('header-sub').textContent = `${contarPorTipo(tipo)} contato(s)`;
+  document.getElementById('busca').value = '';
+  mostrarView('lista');
+  renderListaContatos();
+}
+
+function abrirNotificacoes(){
+  document.getElementById('header-title').textContent = 'Notificações';
+  document.getElementById('header-sub').textContent = 'Próximas interações, da mais próxima pra mais distante';
+  mostrarView('notificacoes');
+  renderNotificacoes();
+}
+
+function contarPorTipo(tipo){
+  if(Array.isArray(tipo)) return CONTATOS.filter(c=>tipo.includes(c.tipo)).length;
+  return CONTATOS.filter(c=>c.tipo===tipo).length;
+}
+
+// ---------- Carregar dados ----------
+async function carregarContatos(){
+  const { data, error } = await sb.from('crm_contatos').select('*').order('nome');
+  if(error){ toast('Erro ao carregar contatos'); console.error(error); return; }
+  CONTATOS = data || [];
+  renderContadoresHome();
+  if(document.getElementById('view-lista').style.display !== 'none') renderListaContatos();
+  if(document.getElementById('view-notificacoes').style.display !== 'none') renderNotificacoes();
+}
+
+function renderContadoresHome(){
+  document.getElementById('count-corretor').textContent = contarPorTipo('corretor');
+  document.getElementById('count-arquiteto').textContent = contarPorTipo('arquiteto');
+  document.getElementById('count-outros').textContent = contarPorTipo(['conhecido','outro']);
+  const hoje = todayISO();
+  const pendentes = CONTATOS.filter(c=>c.proximo_followup && c.proximo_followup <= hoje).length;
+  document.getElementById('count-notif').textContent = pendentes;
+}
+
+// ---------- Lista por categoria ----------
+document.getElementById('busca').addEventListener('input', renderListaContatos);
+
+function renderListaContatos(){
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const lista = CONTATOS.filter(c=>{
+    if(Array.isArray(CATEGORIA_ATIVA)){ if(!CATEGORIA_ATIVA.includes(c.tipo)) return false; }
+    else if(c.tipo !== CATEGORIA_ATIVA) return false;
+    if(busca && !(c.nome?.toLowerCase().includes(busca) || c.empresa?.toLowerCase().includes(busca))) return false;
+    return true;
+  });
+  const el = document.getElementById('lista-contatos');
+  el.innerHTML = lista.length ? lista.map(cardContato).join('') : `<div class="empty">Nenhum contato aqui ainda. Toque em "+ Novo contato" pra adicionar.</div>`;
+}
+
+function cardContato(c){
+  const wl = whatsappLink(c.telefone);
+  return `
+  <div class="card" onclick="abrirDetalhe('${c.id}')">
+    <div class="card-top">
+      <div>
+        <div class="card-name">${escapeHtml(c.nome)}</div>
+        <div class="card-meta">
+          ${c.empresa ? `<span>${escapeHtml(c.empresa)}</span>` : ''}
+          <span>último: ${fmtData(c.ultima_interacao_data)}</span>
+        </div>
+      </div>
+      <span class="stamp ${c.status}">${STATUS_LABEL[c.status]||c.status}</span>
+    </div>
+    <div class="card-actions">
+      ${wl ? `<a class="btn whatsapp small" href="${wl}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a>` : ''}
+      <button class="btn ghost small" onclick="event.stopPropagation(); abrirDetalhe('${c.id}')">Ver / atualizar</button>
+    </div>
+  </div>`;
+}
+
+// ---------- Notificações ----------
+function renderNotificacoes(){
+  const hoje = todayISO();
+  const comLembrete = CONTATOS.filter(c=>c.proximo_followup)
+    .sort((a,b)=> a.proximo_followup < b.proximo_followup ? -1 : a.proximo_followup > b.proximo_followup ? 1 : 0);
+
+  const el = document.getElementById('lista-notificacoes');
+  if(!comLembrete.length){
+    el.innerHTML = `<div class="empty">Nenhum lembrete agendado.</div>`;
+    return;
+  }
+  el.innerHTML = comLembrete.map(c=>{
+    let classe = 'futuro', texto = fmtData(c.proximo_followup);
+    if(c.proximo_followup < hoje){ classe='atrasado'; texto = 'atrasado · '+fmtData(c.proximo_followup); }
+    else if(c.proximo_followup === hoje){ classe='hoje'; texto = 'hoje'; }
+    return `
+    <div class="notif-row" onclick="abrirDetalhe('${c.id}')">
+      <div>
+        <div class="notif-name">${escapeHtml(c.nome)}</div>
+        <div class="notif-meta">${TIPO_LABEL[c.tipo]||c.tipo}${c.empresa ? ' · '+escapeHtml(c.empresa) : ''}</div>
+      </div>
+      <span class="notif-date ${classe}">${texto}</span>
+    </div>`;
+  }).join('');
+}
+
+// ---------- Novo contato ----------
+function abrirNovoContato(){
+  ['nc-nome','nc-empresa','nc-telefone','nc-email','nc-obs','nc-followup'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nc-tipo').value = CATEGORIA_DEFAULT_TIPO || 'corretor';
+  document.getElementById('nc-status').value = 'aguardando';
+  document.getElementById('overlay-novo').classList.add('show');
+}
+
+async function salvarNovoContato(){
+  const nome = document.getElementById('nc-nome').value.trim();
+  if(!nome){ toast('Informe o nome'); return; }
+  const payload = {
+    nome,
+    tipo: document.getElementById('nc-tipo').value,
+    status: document.getElementById('nc-status').value,
+    empresa: document.getElementById('nc-empresa').value.trim() || null,
+    telefone: document.getElementById('nc-telefone').value.trim() || null,
+    email: document.getElementById('nc-email').value.trim() || null,
+    observacoes: document.getElementById('nc-obs').value.trim() || null,
+    proximo_followup: document.getElementById('nc-followup').value || null
+  };
+  const { error } = await sb.from('crm_contatos').insert(payload);
+  if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+  fecharOverlay('overlay-novo');
+  toast('Contato adicionado');
+  await carregarContatos();
+  if(document.getElementById('view-lista').style.display !== 'none'){
+    document.getElementById('header-sub').textContent = `${contarPorTipo(CATEGORIA_ATIVA)} contato(s)`;
+  }
+}
+
+// ---------- Detalhe / interação ----------
+async function abrirDetalhe(id){
+  const c = CONTATOS.find(x=>x.id===id);
+  if(!c) return;
+  CONTATO_ATIVO = c;
+  document.getElementById('det-nome').value = c.nome;
+  document.getElementById('det-meta').textContent = `${TIPO_LABEL[c.tipo]||c.tipo}${c.empresa ? ' · '+c.empresa : ''}`;
+  document.getElementById('det-status').value = c.status;
+  document.getElementById('det-telefone').value = c.telefone || '';
+  document.getElementById('det-lembrete').value = c.proximo_followup || '';
+  document.getElementById('ni-autor').value = USUARIO_ATUAL || 'Willian';
+  document.getElementById('ni-tipo').value = 'whatsapp';
+  document.getElementById('ni-followup').value = '';
+  document.getElementById('ni-resumo').value = '';
+
+  const { data, error } = await sb.from('crm_interacoes').select('*').eq('contato_id', id).order('data', { ascending:false }).order('created_at', { ascending:false });
+  INTERACOES_ATIVAS = data || [];
+  if(error){ document.getElementById('det-timeline').innerHTML = `<div class="empty">Erro ao carregar histórico.</div>`; }
+  else renderTimeline();
+
+  document.getElementById('overlay-detalhe').classList.add('show');
+}
+
+async function atualizarStatus(){
+  if(!CONTATO_ATIVO) return;
+  const novoStatus = document.getElementById('det-status').value;
+  const { error } = await sb.from('crm_contatos').update({ status: novoStatus }).eq('id', CONTATO_ATIVO.id);
+  if(!error){ CONTATO_ATIVO.status = novoStatus; toast('Status atualizado'); carregarContatos(); }
+}
+
+async function atualizarNome(){
+  if(!CONTATO_ATIVO) return;
+  const novoNome = document.getElementById('det-nome').value.trim();
+  if(!novoNome){ document.getElementById('det-nome').value = CONTATO_ATIVO.nome; return; }
+  if(novoNome === CONTATO_ATIVO.nome) return;
+  const { error } = await sb.from('crm_contatos').update({ nome: novoNome }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao salvar nome'); console.error(error); return; }
+  CONTATO_ATIVO.nome = novoNome;
+  toast('Nome atualizado');
+  carregarContatos();
+}
+
+async function atualizarTelefone(){
+  if(!CONTATO_ATIVO) return;
+  const val = document.getElementById('det-telefone').value.trim();
+  await sb.from('crm_contatos').update({ telefone: val || null }).eq('id', CONTATO_ATIVO.id);
+  carregarContatos();
+}
+
+async function salvarLembrete(){
+  if(!CONTATO_ATIVO) return;
+  const data = document.getElementById('det-lembrete').value || null;
+  const { error } = await sb.from('crm_contatos').update({ proximo_followup: data }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao salvar lembrete'); console.error(error); return; }
+  CONTATO_ATIVO.proximo_followup = data;
+  toast('Lembrete salvo');
+  carregarContatos();
+}
+
+function renderTimeline(){
+  const tl = document.getElementById('det-timeline');
+  if(!INTERACOES_ATIVAS.length){
+    tl.innerHTML = `<div class="empty">Nenhuma atualização registrada ainda.</div>`;
+    return;
+  }
+  tl.innerHTML = INTERACOES_ATIVAS.map(i=>{
+    if(i.id === EDITANDO_INTERACAO_ID){
+      return `
+      <div class="tl-item">
+        <div class="tl-edit-form">
+          <div class="row2">
+            <select id="edit-autor-${i.id}">
+              ${Object.keys(USUARIOS).map(u=>`<option value="${u}" ${u===i.autor?'selected':''}>${u}</option>`).join('')}
+            </select>
+            <select id="edit-tipo-${i.id}">
+              ${['whatsapp','ligacao','reuniao','email','outro'].map(t=>`<option value="${t}" ${t===i.tipo?'selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <textarea id="edit-resumo-${i.id}">${escapeHtml(i.resumo||'')}</textarea>
+          <div class="tl-edit-actions">
+            <button class="btn primary small" onclick="salvarEdicaoInteracao('${i.id}')">Salvar</button>
+            <button class="btn ghost small" onclick="cancelarEdicaoInteracao()">Cancelar</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `
+      <div class="tl-item">
+        <div class="tl-top">
+          <span class="mono">${fmtData(i.data)}</span>
+          <span class="tl-autor">${escapeHtml(i.autor||'—')}</span>
+          <span class="tl-actions">
+            <button onclick="editarInteracao('${i.id}')" title="Editar">✎</button>
+            <button onclick="excluirInteracao('${i.id}')" title="Excluir">🗑</button>
+          </span>
+        </div>
+        <div class="tl-resumo">${escapeHtml(i.resumo||'')}</div>
+      </div>`;
+  }).join('');
+}
+
+function editarInteracao(id){
+  EDITANDO_INTERACAO_ID = id;
+  renderTimeline();
+}
+
+function cancelarEdicaoInteracao(){
+  EDITANDO_INTERACAO_ID = null;
+  renderTimeline();
+}
+
+async function salvarEdicaoInteracao(id){
+  const autor = document.getElementById(`edit-autor-${id}`).value;
+  const tipo = document.getElementById(`edit-tipo-${id}`).value;
+  const resumo = document.getElementById(`edit-resumo-${id}`).value.trim();
+  const { error } = await sb.from('crm_interacoes').update({ autor, tipo, resumo }).eq('id', id);
+  if(error){ toast('Erro ao salvar edição'); console.error(error); return; }
+  const item = INTERACOES_ATIVAS.find(x=>x.id===id);
+  if(item){ item.autor=autor; item.tipo=tipo; item.resumo=resumo; }
+  EDITANDO_INTERACAO_ID = null;
+  renderTimeline();
+  toast('Atualização editada');
+  await sincronizarUltimaInteracao();
+  carregarContatos();
+}
+
+async function excluirInteracao(id){
+  if(!confirm('Excluir esta atualização do histórico?')) return;
+  const { error } = await sb.from('crm_interacoes').delete().eq('id', id);
+  if(error){ toast('Erro ao excluir'); console.error(error); return; }
+  INTERACOES_ATIVAS = INTERACOES_ATIVAS.filter(x=>x.id!==id);
+  renderTimeline();
+  toast('Atualização excluída');
+  await sincronizarUltimaInteracao();
+  carregarContatos();
+}
+
+// Recalcula ultima_interacao_data/resumo do contato com base no histórico restante
+async function sincronizarUltimaInteracao(){
+  if(!CONTATO_ATIVO) return;
+  const maisRecente = INTERACOES_ATIVAS[0] || null;
+  const payload = {
+    ultima_interacao_data: maisRecente ? maisRecente.data : null,
+    ultima_interacao_resumo: maisRecente ? maisRecente.resumo : null
+  };
+  await sb.from('crm_contatos').update(payload).eq('id', CONTATO_ATIVO.id);
+}
+
+async function salvarInteracao(){
+  if(!CONTATO_ATIVO) return;
+  const resumo = document.getElementById('ni-resumo').value.trim();
+  const tipo = document.getElementById('ni-tipo').value;
+  const autor = document.getElementById('ni-autor').value;
+  const followup = document.getElementById('ni-followup').value || null;
+  const hoje = todayISO();
+
+  const { error: e1 } = await sb.from('crm_interacoes').insert({
+    contato_id: CONTATO_ATIVO.id, data: hoje, tipo, resumo, autor, proximo_followup: followup
+  });
+  if(e1){ toast('Erro ao salvar atualização'); console.error(e1); return; }
+
+  const updatePayload = {
+    ultima_interacao_data: hoje,
+    ultima_interacao_resumo: resumo
+  };
+  if(followup) updatePayload.proximo_followup = followup;
+
+  const { error: e2 } = await sb.from('crm_contatos').update(updatePayload).eq('id', CONTATO_ATIVO.id);
+  if(e2){ console.error(e2); }
+
+  toast('Atualização registrada');
+  fecharOverlay('overlay-detalhe');
+  carregarContatos();
+}
+
+function fecharOverlay(id){
+  document.getElementById(id).classList.remove('show');
+}
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('show'); });
+});
+
+if(USUARIO_ATUAL){ iniciarApp(); }
+</script>
+</body>
+</html>
