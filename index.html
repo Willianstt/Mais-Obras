@@ -84,6 +84,30 @@
     flex:1; border:1px solid var(--line); border-radius:8px;
     padding:10px 12px; font-size:13.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff;
   }
+  .filtrosbar{ display:flex; gap:8px; margin-bottom:14px; }
+  .filtrosbar select{
+    flex:1; border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+    font-size:12.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff; color:var(--ink);
+  }
+
+  .agenda-nav{ display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
+  .agenda-grid{
+    display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:16px;
+  }
+  .agenda-dow{ text-align:center; font-size:10.5px; font-weight:600; color:var(--ink-soft); padding-bottom:4px; }
+  .agenda-day{
+    aspect-ratio:1; border-radius:8px; border:1px solid var(--line); background:var(--paper-card);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    cursor:pointer; font-size:12.5px; color:var(--ink); position:relative;
+  }
+  .agenda-day.vazio{ visibility:hidden; cursor:default; }
+  .agenda-day.hoje{ border-color:var(--blue); border-width:2px; font-weight:700; }
+  .agenda-day.selecionado{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .agenda-day .pt{ width:5px; height:5px; border-radius:50%; background:var(--green); }
+  .agenda-day.selecionado .pt{ background:#fff; }
+  .agenda-dia-card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+  }
 
   .empty{ font-size:13px; color:var(--ink-soft); padding:14px 0; border-top:1px dashed var(--line); }
 
@@ -266,6 +290,10 @@
         <span class="cat-label">Notificações</span>
         <span class="cat-count" id="count-notif">0</span>
       </button>
+      <button class="cat-tile" style="--cat-color:var(--green)" onclick="abrirAgenda()">
+        <span class="cat-label">Agenda de Reuniões</span>
+        <span class="cat-count" id="count-reunioes">0</span>
+      </button>
     </div>
   </div>
 
@@ -277,13 +305,49 @@
     <div class="searchbar">
       <input type="text" id="busca" placeholder="Buscar por nome ou empresa...">
     </div>
+    <div class="filtrosbar">
+      <select id="filtro-autor-lista" onchange="renderListaContatos()">
+        <option value="">Todos os usuários</option>
+        <option value="Willian">Willian</option>
+        <option value="Carlos">Carlos</option>
+        <option value="Jeanquiel">Jeanquiel</option>
+        <option value="Cristiam">Cristiam</option>
+      </select>
+      <select id="filtro-status-lista" onchange="renderListaContatos()">
+        <option value="">Todos os status</option>
+        <option value="aguardando">Aguardando</option>
+        <option value="agendado">Agendado</option>
+        <option value="potencial_futuro">Potencial futuro</option>
+        <option value="acompanhamento">Acompanhamento</option>
+        <option value="potencial_cliente">Potencial cliente</option>
+      </select>
+    </div>
     <div id="lista-contatos"></div>
   </div>
 
   <div id="view-notificacoes" style="display:none;">
+    <div class="filtrosbar" style="margin-bottom:10px;">
+      <select id="filtro-autor-notif" onchange="renderNotificacoes()">
+        <option value="">Todos os usuários</option>
+        <option value="Willian">Willian</option>
+        <option value="Carlos">Carlos</option>
+        <option value="Jeanquiel">Jeanquiel</option>
+        <option value="Cristiam">Cristiam</option>
+      </select>
+    </div>
     <div class="card" style="padding:4px 14px;">
       <div id="lista-notificacoes"></div>
     </div>
+  </div>
+
+  <div id="view-agenda" style="display:none;">
+    <div class="agenda-nav">
+      <button class="btn small" onclick="mudarMesAgenda(-1)">‹</button>
+      <span id="agenda-mes-label" class="mono" style="font-weight:600;"></span>
+      <button class="btn small" onclick="mudarMesAgenda(1)">›</button>
+    </div>
+    <div class="agenda-grid" id="agenda-grid"></div>
+    <div id="agenda-dia-detalhe"></div>
   </div>
 
 </main>
@@ -346,6 +410,18 @@
       <div class="field"><label>WhatsApp</label><input id="det-telefone" onblur="atualizarTelefone()"></div>
     </div>
 
+    <div class="lembrete-box" id="reuniao-box" style="display:none; background:var(--green-soft);">
+      <div class="field" style="flex:1;">
+        <label style="color:var(--green);">📅 Data da reunião</label>
+        <input type="date" id="det-reuniao-data">
+      </div>
+      <div class="field" style="flex:0 0 110px;">
+        <label style="color:var(--green);">Horário</label>
+        <input type="time" id="det-reuniao-hora">
+      </div>
+      <button class="btn primary small" style="background:var(--green); border-color:var(--green);" onclick="salvarReuniao()">Salvar</button>
+    </div>
+
     <div class="lembrete-box">
       <div class="field">
         <label>🔔 Me lembrar de chamar de novo em</label>
@@ -380,7 +456,6 @@
       </div>
     </div>
     <div class="field"><label>Resumo</label><textarea id="ni-resumo" placeholder="O que foi conversado..."></textarea></div>
-    <div class="field"><label>Próximo lembrete (opcional)</label><input type="date" id="ni-followup"></div>
     <div class="sheet-actions">
       <button class="btn primary" onclick="salvarInteracao()">Salvar atualização</button>
     </div>
@@ -501,6 +576,7 @@ function mostrarView(view){
   document.getElementById('view-home').style.display = view==='home' ? 'block':'none';
   document.getElementById('view-lista').style.display = view==='lista' ? 'block':'none';
   document.getElementById('view-notificacoes').style.display = view==='notificacoes' ? 'block':'none';
+  document.getElementById('view-agenda').style.display = view==='agenda' ? 'block':'none';
   document.getElementById('btn-back').classList.toggle('show', view!=='home');
   document.getElementById('fab-add').style.display = view==='lista' ? 'none' : 'none';
 }
@@ -518,6 +594,8 @@ function abrirLista(tipo, label){
   document.getElementById('header-title').textContent = label;
   document.getElementById('header-sub').textContent = `${contarPorTipo(tipo)} contato(s)`;
   document.getElementById('busca').value = '';
+  document.getElementById('filtro-autor-lista').value = '';
+  document.getElementById('filtro-status-lista').value = '';
   mostrarView('lista');
   renderListaContatos();
 }
@@ -540,6 +618,7 @@ async function carregarContatos(){
   if(error){ toast('Erro ao carregar contatos'); console.error(error); return; }
   CONTATOS = data || [];
   renderContadoresHome();
+  carregarReunioes();
   if(document.getElementById('view-lista').style.display !== 'none') renderListaContatos();
   if(document.getElementById('view-notificacoes').style.display !== 'none') renderNotificacoes();
 }
@@ -558,14 +637,18 @@ document.getElementById('busca').addEventListener('input', renderListaContatos);
 
 function renderListaContatos(){
   const busca = document.getElementById('busca').value.toLowerCase();
+  const filtroAutor = document.getElementById('filtro-autor-lista').value;
+  const filtroStatus = document.getElementById('filtro-status-lista').value;
   const lista = CONTATOS.filter(c=>{
     if(Array.isArray(CATEGORIA_ATIVA)){ if(!CATEGORIA_ATIVA.includes(c.tipo)) return false; }
     else if(c.tipo !== CATEGORIA_ATIVA) return false;
     if(busca && !(c.nome?.toLowerCase().includes(busca) || c.empresa?.toLowerCase().includes(busca))) return false;
+    if(filtroAutor && c.ultima_interacao_autor !== filtroAutor) return false;
+    if(filtroStatus && c.status !== filtroStatus) return false;
     return true;
   });
   const el = document.getElementById('lista-contatos');
-  el.innerHTML = lista.length ? lista.map(cardContato).join('') : `<div class="empty">Nenhum contato aqui ainda. Toque em "+ Novo contato" pra adicionar.</div>`;
+  el.innerHTML = lista.length ? lista.map(cardContato).join('') : `<div class="empty">Nenhum contato encontrado.</div>`;
 }
 
 function cardContato(c){
@@ -577,7 +660,7 @@ function cardContato(c){
         <div class="card-name">${escapeHtml(c.nome)}</div>
         <div class="card-meta">
           ${c.empresa ? `<span>${escapeHtml(c.empresa)}</span>` : ''}
-          <span>último: ${fmtData(c.ultima_interacao_data)}</span>
+          <span>último: ${fmtData(c.ultima_interacao_data)}${c.ultima_interacao_autor ? ' · '+escapeHtml(c.ultima_interacao_autor) : ''}</span>
         </div>
       </div>
       <span class="stamp ${c.status}">${STATUS_LABEL[c.status]||c.status}</span>
@@ -592,7 +675,9 @@ function cardContato(c){
 // ---------- Notificações ----------
 function renderNotificacoes(){
   const hoje = todayISO();
+  const filtroAutor = document.getElementById('filtro-autor-notif').value;
   const comLembrete = CONTATOS.filter(c=>c.proximo_followup)
+    .filter(c=> !filtroAutor || c.ultima_interacao_autor === filtroAutor)
     .sort((a,b)=> a.proximo_followup < b.proximo_followup ? -1 : a.proximo_followup > b.proximo_followup ? 1 : 0);
 
   const el = document.getElementById('lista-notificacoes');
@@ -608,11 +693,101 @@ function renderNotificacoes(){
     <div class="notif-row" onclick="abrirDetalhe('${c.id}')">
       <div>
         <div class="notif-name">${escapeHtml(c.nome)}</div>
-        <div class="notif-meta">${TIPO_LABEL[c.tipo]||c.tipo}${c.empresa ? ' · '+escapeHtml(c.empresa) : ''}</div>
+        <div class="notif-meta">
+          <span class="stamp ${c.status}" style="margin-right:6px;">${STATUS_LABEL[c.status]||c.status}</span>
+          ${TIPO_LABEL[c.tipo]||c.tipo}${c.empresa ? ' · '+escapeHtml(c.empresa) : ''}
+        </div>
       </div>
       <span class="notif-date ${classe}">${texto}</span>
     </div>`;
   }).join('');
+}
+
+// ---------- Agenda de Reuniões ----------
+let AGENDA_MES_ATUAL = new Date();
+let AGENDA_REUNIOES = []; // { data, contato_id, contato_nome, resumo, autor }
+let AGENDA_DIA_SELECIONADO = null;
+
+async function abrirAgenda(){
+  document.getElementById('header-title').textContent = 'Agenda de Reuniões';
+  document.getElementById('header-sub').textContent = 'Reuniões registradas, organizadas por dia';
+  mostrarView('agenda');
+  AGENDA_MES_ATUAL = new Date();
+  AGENDA_DIA_SELECIONADO = null;
+  await carregarReunioes();
+  renderAgenda();
+}
+
+async function carregarReunioes(){
+  const { data, error } = await sb.from('crm_interacoes').select('*').eq('tipo','reuniao').order('data');
+  const doHistorico = error ? [] : (data||[]).map(i=>{
+    const contato = CONTATOS.find(c=>c.id===i.contato_id);
+    return { data: i.data, hora: null, contato_id: i.contato_id, contato_nome: contato ? contato.nome : 'Contato removido', resumo: i.resumo, autor: i.autor };
+  });
+
+  const agendadas = CONTATOS.filter(c=>c.reuniao_data).map(c=>({
+    data: c.reuniao_data, hora: c.reuniao_hora, contato_id: c.id, contato_nome: c.nome,
+    resumo: c.reuniao_hora ? `Reunião agendada às ${c.reuniao_hora}` : 'Reunião agendada', autor: null
+  }));
+
+  AGENDA_REUNIOES = [...doHistorico, ...agendadas];
+  document.getElementById('count-reunioes').textContent = AGENDA_REUNIOES.filter(r=>r.data >= todayISO()).length;
+}
+
+function mudarMesAgenda(delta){
+  AGENDA_MES_ATUAL = new Date(AGENDA_MES_ATUAL.getFullYear(), AGENDA_MES_ATUAL.getMonth()+delta, 1);
+  AGENDA_DIA_SELECIONADO = null;
+  renderAgenda();
+}
+
+const MESES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DOW_PT = ["D","S","T","Q","Q","S","S"];
+
+function renderAgenda(){
+  const ano = AGENDA_MES_ATUAL.getFullYear();
+  const mes = AGENDA_MES_ATUAL.getMonth();
+  document.getElementById('agenda-mes-label').textContent = `${MESES_PT[mes]} ${ano}`;
+
+  const primeiroDia = new Date(ano, mes, 1);
+  const ultimoDia = new Date(ano, mes+1, 0);
+  const offset = primeiroDia.getDay();
+  const hoje = todayISO();
+
+  let html = DOW_PT.map(d=>`<div class="agenda-dow">${d}</div>`).join('');
+  for(let i=0;i<offset;i++) html += `<div class="agenda-day vazio"></div>`;
+
+  for(let d=1; d<=ultimoDia.getDate(); d++){
+    const iso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const temReuniao = AGENDA_REUNIOES.some(r=>r.data===iso);
+    const classes = ['agenda-day'];
+    if(iso===hoje) classes.push('hoje');
+    if(iso===AGENDA_DIA_SELECIONADO) classes.push('selecionado');
+    html += `<div class="${classes.join(' ')}" onclick="selecionarDiaAgenda('${iso}')">${d}${temReuniao?'<span class="pt"></span>':''}</div>`;
+  }
+  document.getElementById('agenda-grid').innerHTML = html;
+  renderAgendaDiaDetalhe();
+}
+
+function selecionarDiaAgenda(iso){
+  AGENDA_DIA_SELECIONADO = (AGENDA_DIA_SELECIONADO===iso) ? null : iso;
+  renderAgenda();
+}
+
+function renderAgendaDiaDetalhe(){
+  const el = document.getElementById('agenda-dia-detalhe');
+  if(!AGENDA_DIA_SELECIONADO){ el.innerHTML = ''; return; }
+  const doDia = AGENDA_REUNIOES.filter(r=>r.data===AGENDA_DIA_SELECIONADO)
+    .sort((a,b)=> (a.hora||'99:99') < (b.hora||'99:99') ? -1 : 1);
+  el.innerHTML = `
+    <div class="agenda-dia-card">
+      <div style="font-weight:600; font-size:13px; margin-bottom:8px;">${fmtData(AGENDA_DIA_SELECIONADO)}</div>
+      ${doDia.length ? doDia.map(r=>`
+        <div class="tl-item" onclick="abrirDetalhe('${r.contato_id}')" style="cursor:pointer;">
+          <div class="tl-top"><span class="tl-autor">${r.hora ? r.hora+' · ' : ''}${escapeHtml(r.contato_nome)}</span><span>${escapeHtml(r.autor||'')}</span></div>
+          <div class="tl-resumo">${escapeHtml(r.resumo||'')}</div>
+        </div>
+      `).join('') : '<div class="empty">Nenhuma reunião nesse dia.</div>'}
+    </div>`;
 }
 
 // ---------- Novo contato ----------
@@ -656,9 +831,11 @@ async function abrirDetalhe(id){
   document.getElementById('det-status').value = c.status;
   document.getElementById('det-telefone').value = c.telefone || '';
   document.getElementById('det-lembrete').value = c.proximo_followup || '';
+  document.getElementById('det-reuniao-data').value = c.reuniao_data || '';
+  document.getElementById('det-reuniao-hora').value = c.reuniao_hora || '';
+  document.getElementById('reuniao-box').style.display = c.status === 'agendado' ? 'flex' : 'none';
   document.getElementById('ni-autor').value = USUARIO_ATUAL || 'Willian';
   document.getElementById('ni-tipo').value = 'whatsapp';
-  document.getElementById('ni-followup').value = '';
   document.getElementById('ni-resumo').value = '';
 
   const { data, error } = await sb.from('crm_interacoes').select('*').eq('contato_id', id).order('data', { ascending:false }).order('created_at', { ascending:false });
@@ -672,6 +849,7 @@ async function abrirDetalhe(id){
 async function atualizarStatus(){
   if(!CONTATO_ATIVO) return;
   const novoStatus = document.getElementById('det-status').value;
+  document.getElementById('reuniao-box').style.display = novoStatus === 'agendado' ? 'flex' : 'none';
   const { error } = await sb.from('crm_contatos').update({ status: novoStatus }).eq('id', CONTATO_ATIVO.id);
   if(!error){ CONTATO_ATIVO.status = novoStatus; toast('Status atualizado'); carregarContatos(); }
 }
@@ -692,6 +870,18 @@ async function atualizarTelefone(){
   if(!CONTATO_ATIVO) return;
   const val = document.getElementById('det-telefone').value.trim();
   await sb.from('crm_contatos').update({ telefone: val || null }).eq('id', CONTATO_ATIVO.id);
+  carregarContatos();
+}
+
+async function salvarReuniao(){
+  if(!CONTATO_ATIVO) return;
+  const data = document.getElementById('det-reuniao-data').value || null;
+  const hora = document.getElementById('det-reuniao-hora').value || null;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: data, reuniao_hora: hora }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao salvar reunião'); console.error(error); return; }
+  CONTATO_ATIVO.reuniao_data = data;
+  CONTATO_ATIVO.reuniao_hora = hora;
+  toast('Reunião salva');
   carregarContatos();
 }
 
@@ -789,7 +979,8 @@ async function sincronizarUltimaInteracao(){
   const maisRecente = INTERACOES_ATIVAS[0] || null;
   const payload = {
     ultima_interacao_data: maisRecente ? maisRecente.data : null,
-    ultima_interacao_resumo: maisRecente ? maisRecente.resumo : null
+    ultima_interacao_resumo: maisRecente ? maisRecente.resumo : null,
+    ultima_interacao_autor: maisRecente ? maisRecente.autor : null
   };
   await sb.from('crm_contatos').update(payload).eq('id', CONTATO_ATIVO.id);
 }
@@ -799,19 +990,18 @@ async function salvarInteracao(){
   const resumo = document.getElementById('ni-resumo').value.trim();
   const tipo = document.getElementById('ni-tipo').value;
   const autor = document.getElementById('ni-autor').value;
-  const followup = document.getElementById('ni-followup').value || null;
   const hoje = todayISO();
 
   const { error: e1 } = await sb.from('crm_interacoes').insert({
-    contato_id: CONTATO_ATIVO.id, data: hoje, tipo, resumo, autor, proximo_followup: followup
+    contato_id: CONTATO_ATIVO.id, data: hoje, tipo, resumo, autor
   });
   if(e1){ toast('Erro ao salvar atualização'); console.error(e1); return; }
 
   const updatePayload = {
     ultima_interacao_data: hoje,
-    ultima_interacao_resumo: resumo
+    ultima_interacao_resumo: resumo,
+    ultima_interacao_autor: autor
   };
-  if(followup) updatePayload.proximo_followup = followup;
 
   const { error: e2 } = await sb.from('crm_contatos').update(updatePayload).eq('id', CONTATO_ATIVO.id);
   if(e2){ console.error(e2); }
