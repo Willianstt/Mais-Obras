@@ -115,6 +115,32 @@
     background:var(--paper-card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
   }
 
+  .modelo-card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px; margin-bottom:10px; box-shadow:var(--shadow);
+  }
+  .modelo-titulo{ font-weight:600; font-size:14.5px; margin-bottom:6px; }
+  .modelo-conteudo{
+    font-size:13px; color:var(--ink-soft); white-space:pre-wrap; margin-bottom:10px;
+    max-height:90px; overflow-y:auto;
+  }
+  .modelo-actions{ display:flex; gap:8px; }
+
+  .stats-chart{ display:flex; align-items:flex-end; gap:3px; height:170px; padding-bottom:2px; }
+  .stats-bar-wrap{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    height:100%; min-width:6px;
+  }
+  .stats-bar-count{ font-size:8.5px; font-weight:600; color:var(--blue); margin-bottom:2px; height:11px; }
+  .stats-bar{ width:100%; background:var(--blue); border-radius:3px 3px 0 0; min-height:2px; }
+  .stats-bar.zero{ background:var(--line); }
+  .stats-bar-label{
+    font-size:8px; color:var(--ink-soft); margin-top:5px; text-align:center; line-height:1.15;
+  }
+  .stats-bar-label.vertical{
+    writing-mode:vertical-rl; text-orientation:mixed; max-height:32px; margin-top:4px;
+  }
+
   .empty{ font-size:13px; color:var(--ink-soft); padding:14px 0; border-top:1px dashed var(--line); }
 
   .card{
@@ -300,6 +326,14 @@
         <span class="cat-label">Agenda de Reuniões</span>
         <span class="cat-count" id="count-reunioes">0</span>
       </button>
+      <button class="cat-tile" style="--cat-color:var(--amber)" onclick="abrirMensagens()">
+        <span class="cat-label">Mensagens (modelos)</span>
+        <span class="cat-count" id="count-mensagens">0</span>
+      </button>
+      <button class="cat-tile" style="--cat-color:var(--blue)" onclick="abrirEstatisticas()">
+        <span class="cat-label">Gráfico de Contatos</span>
+        <span class="cat-count" id="count-stats-total">0</span>
+      </button>
     </div>
   </div>
 
@@ -356,7 +390,41 @@
     <div id="agenda-dia-detalhe"></div>
   </div>
 
+  <div id="view-mensagens" style="display:none;">
+    <div class="list-header">
+      <h2>Mensagens modelo</h2>
+      <button class="btn-add" onclick="abrirNovoModelo()">+ Novo modelo</button>
+    </div>
+    <div id="lista-modelos"></div>
+  </div>
+
+  <div id="view-stats" style="display:none;">
+    <div class="chiprow" id="stats-filtros">
+      <span class="chip active" data-modo="semana">Essa semana</span>
+      <span class="chip" data-modo="mes">Esse mês</span>
+      <span class="chip" data-modo="selecionar">Selecionar mês</span>
+    </div>
+    <input type="month" id="stats-mes-input" style="display:none; margin-bottom:14px; width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:13.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff;">
+    <div class="card" style="padding:16px 14px 10px;">
+      <div id="stats-resumo" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></div>
+      <div class="stats-chart" id="stats-chart"></div>
+    </div>
+  </div>
+
 </main>
+
+<!-- Modal: novo/editar modelo de mensagem -->
+<div class="overlay" id="overlay-modelo">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-modelo')">✕</button>
+    <h3 id="modelo-titulo-sheet">Novo modelo</h3>
+    <div class="field"><label>Título</label><input id="mo-titulo" placeholder="Ex: Primeira abordagem"></div>
+    <div class="field"><label>Mensagem</label><textarea id="mo-conteudo" style="min-height:130px;" placeholder="Escreva o texto da mensagem..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarModelo()">Salvar modelo</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: novo contato -->
 <div class="overlay" id="overlay-novo">
@@ -514,6 +582,7 @@ function iniciarApp(){
   document.getElementById('btn-logout').style.display = 'block';
   mostrarView('home');
   carregarContatos();
+  carregarModelos();
 }
 
 (function tentarSessaoSalva(){
@@ -584,6 +653,8 @@ function mostrarView(view){
   document.getElementById('view-lista').style.display = view==='lista' ? 'block':'none';
   document.getElementById('view-notificacoes').style.display = view==='notificacoes' ? 'block':'none';
   document.getElementById('view-agenda').style.display = view==='agenda' ? 'block':'none';
+  document.getElementById('view-mensagens').style.display = view==='mensagens' ? 'block':'none';
+  document.getElementById('view-stats').style.display = view==='stats' ? 'block':'none';
   document.getElementById('btn-back').classList.toggle('show', view!=='home');
   document.getElementById('fab-add').style.display = view==='lista' ? 'none' : 'none';
 }
@@ -637,6 +708,7 @@ function renderContadoresHome(){
   const hoje = todayISO();
   const pendentes = CONTATOS.filter(c=>c.proximo_followup && c.proximo_followup <= hoje).length;
   document.getElementById('count-notif').textContent = pendentes;
+  document.getElementById('count-stats-total').textContent = CONTATOS.length;
 }
 
 // ---------- Lista por categoria ----------
@@ -812,6 +884,196 @@ async function cancelarReuniaoDireto(contatoId){
   await carregarContatos();
   await carregarReunioes();
   renderAgenda();
+}
+
+// ---------- Mensagens modelo ----------
+let MODELOS = [];
+let MODELO_EDITANDO_ID = null;
+
+async function abrirMensagens(){
+  document.getElementById('header-title').textContent = 'Mensagens modelo';
+  document.getElementById('header-sub').textContent = 'Textos prontos pra copiar e colar';
+  mostrarView('mensagens');
+  await carregarModelos();
+}
+
+async function carregarModelos(){
+  const { data, error } = await sb.from('crm_mensagens').select('*').order('created_at', { ascending:false });
+  if(error){ toast('Erro ao carregar modelos'); console.error(error); MODELOS = []; }
+  else MODELOS = data || [];
+  document.getElementById('count-mensagens').textContent = MODELOS.length;
+  renderModelos();
+}
+
+function renderModelos(){
+  const el = document.getElementById('lista-modelos');
+  if(!MODELOS.length){
+    el.innerHTML = `<div class="empty">Nenhum modelo cadastrado ainda. Toque em "+ Novo modelo" pra criar.</div>`;
+    return;
+  }
+  el.innerHTML = MODELOS.map(m => `
+    <div class="modelo-card">
+      <div class="modelo-titulo">${escapeHtml(m.titulo)}</div>
+      <div class="modelo-conteudo">${escapeHtml(m.conteudo)}</div>
+      <div class="modelo-actions">
+        <button class="btn whatsapp small" onclick="copiarModelo('${m.id}')">Copiar</button>
+        <button class="btn ghost small" onclick="editarModelo('${m.id}')">Editar</button>
+        <button class="btn small" style="color:var(--coral); border-color:var(--coral);" onclick="excluirModelo('${m.id}')">Excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+async function copiarModelo(id){
+  const m = MODELOS.find(x=>x.id===id);
+  if(!m) return;
+  try{
+    await navigator.clipboard.writeText(m.conteudo);
+    toast('Mensagem copiada');
+  }catch(e){
+    toast('Não foi possível copiar automaticamente. Selecione o texto manualmente.', 4000);
+  }
+}
+
+function abrirNovoModelo(){
+  MODELO_EDITANDO_ID = null;
+  document.getElementById('modelo-titulo-sheet').textContent = 'Novo modelo';
+  document.getElementById('mo-titulo').value = '';
+  document.getElementById('mo-conteudo').value = '';
+  document.getElementById('overlay-modelo').classList.add('show');
+}
+
+function editarModelo(id){
+  const m = MODELOS.find(x=>x.id===id);
+  if(!m) return;
+  MODELO_EDITANDO_ID = id;
+  document.getElementById('modelo-titulo-sheet').textContent = 'Editar modelo';
+  document.getElementById('mo-titulo').value = m.titulo;
+  document.getElementById('mo-conteudo').value = m.conteudo;
+  document.getElementById('overlay-modelo').classList.add('show');
+}
+
+async function salvarModelo(){
+  const titulo = document.getElementById('mo-titulo').value.trim();
+  const conteudo = document.getElementById('mo-conteudo').value.trim();
+  if(!titulo || !conteudo){ toast('Preencha título e mensagem'); return; }
+
+  if(MODELO_EDITANDO_ID){
+    const { error } = await sb.from('crm_mensagens').update({ titulo, conteudo }).eq('id', MODELO_EDITANDO_ID);
+    if(error){ toast('Erro ao salvar'); console.error(error); return; }
+    toast('Modelo atualizado');
+  } else {
+    const { error } = await sb.from('crm_mensagens').insert({ titulo, conteudo });
+    if(error){ toast('Erro ao salvar'); console.error(error); return; }
+    toast('Modelo criado');
+  }
+  fecharOverlay('overlay-modelo');
+  carregarModelos();
+}
+
+async function excluirModelo(id){
+  if(!confirm('Excluir este modelo de mensagem?')) return;
+  const { error } = await sb.from('crm_mensagens').delete().eq('id', id);
+  if(error){ toast('Erro ao excluir'); console.error(error); return; }
+  toast('Modelo excluído');
+  carregarModelos();
+}
+
+// ---------- Gráfico de Contatos ----------
+let STATS_MODO = 'semana';
+let STATS_MES_SELECIONADO = null; // 'YYYY-MM'
+
+function abrirEstatisticas(){
+  document.getElementById('header-title').textContent = 'Gráfico de Contatos';
+  document.getElementById('header-sub').textContent = 'Contatos adicionados por dia';
+  mostrarView('stats');
+  if(!STATS_MES_SELECIONADO){
+    const hoje = new Date();
+    STATS_MES_SELECIONADO = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  }
+  renderStats();
+}
+
+document.getElementById('stats-filtros').addEventListener('click', e=>{
+  if(!e.target.classList.contains('chip')) return;
+  document.querySelectorAll('#stats-filtros .chip').forEach(c=>c.classList.remove('active'));
+  e.target.classList.add('active');
+  STATS_MODO = e.target.dataset.modo;
+  document.getElementById('stats-mes-input').style.display = STATS_MODO==='selecionar' ? 'block' : 'none';
+  if(STATS_MODO==='selecionar'){
+    document.getElementById('stats-mes-input').value = STATS_MES_SELECIONADO;
+  }
+  renderStats();
+});
+
+document.getElementById('stats-mes-input').addEventListener('change', e=>{
+  STATS_MES_SELECIONADO = e.target.value;
+  renderStats();
+});
+
+function diasDoModoStats(){
+  const dias = [];
+  if(STATS_MODO === 'semana'){
+    const hoje = new Date();
+    const dow = hoje.getDay();
+    const diffSegunda = (dow===0 ? -6 : 1-dow);
+    const segunda = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()+diffSegunda);
+    for(let i=0;i<7;i++){
+      const d = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate()+i);
+      dias.push(d);
+    }
+  } else {
+    let ano, mes;
+    if(STATS_MODO === 'mes'){
+      const hoje = new Date();
+      ano = hoje.getFullYear(); mes = hoje.getMonth();
+    } else {
+      const [y,m] = (STATS_MES_SELECIONADO||'').split('-');
+      ano = parseInt(y); mes = parseInt(m)-1;
+    }
+    const ultimoDia = new Date(ano, mes+1, 0).getDate();
+    for(let d=1; d<=ultimoDia; d++) dias.push(new Date(ano, mes, d));
+  }
+  return dias;
+}
+
+function isoLocal(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function renderStats(){
+  const dias = diasDoModoStats();
+  const contagemPorDia = dias.map(d=>{
+    const iso = isoLocal(d);
+    return CONTATOS.filter(c => c.created_at && c.created_at.slice(0,10) === iso).length;
+  });
+  const max = Math.max(1, ...contagemPorDia);
+  const total = contagemPorDia.reduce((a,b)=>a+b,0);
+  const vertical = dias.length > 10;
+
+  let periodoLabel = '';
+  if(STATS_MODO==='semana') periodoLabel = 'nesta semana';
+  else if(STATS_MODO==='mes') periodoLabel = `em ${MESES_PT[new Date().getMonth()]}`;
+  else { const [y,m] = (STATS_MES_SELECIONADO||'').split('-'); periodoLabel = m ? `em ${MESES_PT[parseInt(m)-1]} de ${y}` : ''; }
+
+  document.getElementById('stats-resumo').textContent = `${total} contato(s) adicionado(s) ${periodoLabel}`;
+  document.getElementById('count-stats-total').textContent = CONTATOS.length;
+
+  document.getElementById('stats-chart').innerHTML = dias.map((d,i)=>{
+    const count = contagemPorDia[i];
+    const alturaPct = Math.round((count / max) * 100);
+    let label;
+    if(STATS_MODO==='semana'){
+      label = `${DOW_PT[d.getDay()]}<br>${d.getDate()}`;
+    } else {
+      label = `${d.getDate()}`;
+    }
+    return `
+      <div class="stats-bar-wrap">
+        <div class="stats-bar-count">${count>0?count:''}</div>
+        <div class="stats-bar ${count===0?'zero':''}" style="height:${Math.max(alturaPct,count>0?4:1)}%;"></div>
+        <div class="stats-bar-label ${vertical?'vertical':''}">${label}</div>
+      </div>`;
+  }).join('');
 }
 
 // ---------- Novo contato ----------
