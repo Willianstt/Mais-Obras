@@ -959,11 +959,11 @@ async function salvarModelo(){
 
   if(MODELO_EDITANDO_ID){
     const { error } = await sb.from('crm_mensagens').update({ titulo, conteudo }).eq('id', MODELO_EDITANDO_ID);
-    if(error){ toast('Erro ao salvar'); console.error(error); return; }
+    if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
     toast('Modelo atualizado');
   } else {
     const { error } = await sb.from('crm_mensagens').insert({ titulo, conteudo });
-    if(error){ toast('Erro ao salvar'); console.error(error); return; }
+    if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
     toast('Modelo criado');
   }
   fecharOverlay('overlay-modelo');
