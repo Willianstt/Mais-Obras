@@ -141,6 +141,12 @@
     writing-mode:vertical-rl; text-orientation:mixed; max-height:32px; margin-top:4px;
   }
 
+  .grupo-usuario-header{
+    font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--ink-soft); margin:18px 0 8px; padding-bottom:5px; border-bottom:1px solid var(--line);
+  }
+  .grupo-usuario-header:first-child{ margin-top:0; }
+
   .empty{ font-size:13px; color:var(--ink-soft); padding:14px 0; border-top:1px dashed var(--line); }
 
   .card{
@@ -318,6 +324,10 @@
         <span class="cat-label">Outros contatos</span>
         <span class="cat-count" id="count-outros">0</span>
       </button>
+      <button class="cat-tile" style="--cat-color:var(--ink-soft)" onclick="abrirFuturos()">
+        <span class="cat-label">Adição futura</span>
+        <span class="cat-count" id="count-futuros">0</span>
+      </button>
       <button class="cat-tile" style="--cat-color:var(--coral)" onclick="abrirNotificacoes()">
         <span class="cat-label">Notificações</span>
         <span class="cat-count" id="count-notif">0</span>
@@ -411,7 +421,74 @@
     </div>
   </div>
 
+  <div id="view-futuros" style="display:none;">
+    <div class="list-header">
+      <h2>Adição futura</h2>
+      <button class="btn-add" onclick="abrirNovoFuturo()">+ Nova adição</button>
+    </div>
+    <div id="lista-futuros"></div>
+  </div>
+
 </main>
+
+<!-- Modal: nova adição futura -->
+<div class="overlay" id="overlay-futuro">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-futuro')">✕</button>
+    <h3>Nova adição futura</h3>
+    <div class="field"><label>Nome*</label><input id="nf-nome" placeholder="Nome da pessoa"></div>
+    <div class="field"><label>Tipo (se já souber)</label>
+      <select id="nf-tipo">
+        <option value="">Ainda não sei</option>
+        <option value="corretor">Corretor</option>
+        <option value="arquiteto">Arquiteto</option>
+        <option value="conhecido">Conhecido</option>
+        <option value="outro">Outro</option>
+      </select>
+    </div>
+    <div class="field"><label>Empresa / Imobiliária</label><input id="nf-empresa"></div>
+    <div class="row2">
+      <div class="field"><label>WhatsApp</label><input id="nf-telefone" placeholder="49 9 9999-9999"></div>
+      <div class="field"><label>E-mail</label><input id="nf-email"></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea id="nf-obs" placeholder="Onde conheceu, contexto..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarFuturo()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: detalhe adição futura -->
+<div class="overlay" id="overlay-futuro-detalhe">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-futuro-detalhe')">✕</button>
+    <input id="fd-nome" class="det-nome-input" onblur="atualizarNomeFuturo()" onkeydown="if(event.key==='Enter') this.blur()">
+    <div class="card-meta" id="fd-meta" style="margin-bottom:14px;"></div>
+    <div class="row2">
+      <div class="field"><label>Tipo (se já souber)</label>
+        <select id="fd-tipo" onchange="atualizarCampoFuturo('tipo', this.value)">
+          <option value="">Ainda não sei</option>
+          <option value="corretor">Corretor</option>
+          <option value="arquiteto">Arquiteto</option>
+          <option value="conhecido">Conhecido</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Empresa / Imobiliária</label><input id="fd-empresa" onblur="atualizarCampoFuturo('empresa', this.value)"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>WhatsApp</label><input id="fd-telefone" onblur="atualizarCampoFuturo('telefone', this.value)"></div>
+      <div class="field"><label>E-mail</label><input id="fd-email" onblur="atualizarCampoFuturo('email', this.value)"></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea id="fd-obs" onblur="atualizarCampoFuturo('observacao', this.value)"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="efetivarFuturo()">Efetivar contato</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn small" style="width:100%; justify-content:center; color:var(--coral); border-color:var(--coral);" onclick="excluirFuturo()">Excluir da lista</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: novo/editar modelo de mensagem -->
 <div class="overlay" id="overlay-modelo">
@@ -583,6 +660,7 @@ function iniciarApp(){
   mostrarView('home');
   carregarContatos();
   carregarModelos();
+  carregarFuturos();
 }
 
 (function tentarSessaoSalva(){
@@ -655,6 +733,7 @@ function mostrarView(view){
   document.getElementById('view-agenda').style.display = view==='agenda' ? 'block':'none';
   document.getElementById('view-mensagens').style.display = view==='mensagens' ? 'block':'none';
   document.getElementById('view-stats').style.display = view==='stats' ? 'block':'none';
+  document.getElementById('view-futuros').style.display = view==='futuros' ? 'block':'none';
   document.getElementById('btn-back').classList.toggle('show', view!=='home');
   document.getElementById('fab-add').style.display = view==='lista' ? 'none' : 'none';
 }
@@ -1076,6 +1155,142 @@ function renderStats(){
   }).join('');
 }
 
+// ---------- Adição futura ----------
+let FUTUROS = [];
+let FUTURO_ATIVO = null;
+let FUTURO_EFETIVANDO_ID = null;
+
+async function abrirFuturos(){
+  document.getElementById('header-title').textContent = 'Adição futura';
+  document.getElementById('header-sub').textContent = 'Pessoas pra considerar adicionar depois, por usuário';
+  mostrarView('futuros');
+  await carregarFuturos();
+}
+
+async function carregarFuturos(){
+  const { data, error } = await sb.from('crm_futuros').select('*').order('created_at', { ascending:false });
+  if(error){ toast('Erro ao carregar lista'); console.error(error); FUTUROS = []; }
+  else FUTUROS = data || [];
+  document.getElementById('count-futuros').textContent = FUTUROS.length;
+  renderFuturos();
+}
+
+function renderFuturos(){
+  const el = document.getElementById('lista-futuros');
+  if(!FUTUROS.length){
+    el.innerHTML = `<div class="empty">Nenhuma adição futura registrada ainda.</div>`;
+    return;
+  }
+  const grupos = {};
+  FUTUROS.forEach(f=>{
+    const chave = f.autor || 'Sem usuário';
+    if(!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(f);
+  });
+  const ordemUsuarios = Object.keys(USUARIOS).concat(['Sem usuário']);
+  const chavesOrdenadas = Object.keys(grupos).sort((a,b)=> ordemUsuarios.indexOf(a) - ordemUsuarios.indexOf(b));
+
+  el.innerHTML = chavesOrdenadas.map(chave => `
+    <div class="grupo-usuario-header">${escapeHtml(chave)} · ${grupos[chave].length}</div>
+    ${grupos[chave].map(f => `
+      <div class="card" onclick="abrirDetalheFuturo('${f.id}')">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${escapeHtml(f.nome)}</div>
+            <div class="card-meta">
+              ${f.tipo ? `<span>${TIPO_LABEL[f.tipo]||f.tipo}</span>` : ''}
+              ${f.empresa ? `<span>${escapeHtml(f.empresa)}</span>` : ''}
+              ${f.observacao ? `<span>${escapeHtml(f.observacao)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        ${f.telefone ? `<div class="card-actions"><a class="btn whatsapp small" href="${whatsappLink(f.telefone)}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a></div>` : ''}
+      </div>
+    `).join('')}
+  `).join('');
+}
+
+function abrirNovoFuturo(){
+  ['nf-nome','nf-empresa','nf-telefone','nf-email','nf-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nf-tipo').value = '';
+  document.getElementById('overlay-futuro').classList.add('show');
+}
+
+async function salvarFuturo(){
+  const nome = document.getElementById('nf-nome').value.trim();
+  if(!nome){ toast('Informe o nome'); return; }
+  const payload = {
+    nome,
+    tipo: document.getElementById('nf-tipo').value || null,
+    empresa: document.getElementById('nf-empresa').value.trim() || null,
+    telefone: document.getElementById('nf-telefone').value.trim() || null,
+    email: document.getElementById('nf-email').value.trim() || null,
+    observacao: document.getElementById('nf-obs').value.trim() || null,
+    autor: USUARIO_ATUAL || null
+  };
+  const { error } = await sb.from('crm_futuros').insert(payload);
+  if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+  fecharOverlay('overlay-futuro');
+  toast('Adicionado à lista');
+  carregarFuturos();
+}
+
+function abrirDetalheFuturo(id){
+  const f = FUTUROS.find(x=>x.id===id);
+  if(!f) return;
+  FUTURO_ATIVO = f;
+  document.getElementById('fd-nome').value = f.nome;
+  document.getElementById('fd-meta').textContent = `Adicionado por ${f.autor || 'desconhecido'}`;
+  document.getElementById('fd-tipo').value = f.tipo || '';
+  document.getElementById('fd-empresa').value = f.empresa || '';
+  document.getElementById('fd-telefone').value = f.telefone || '';
+  document.getElementById('fd-email').value = f.email || '';
+  document.getElementById('fd-obs').value = f.observacao || '';
+  document.getElementById('overlay-futuro-detalhe').classList.add('show');
+}
+
+async function atualizarNomeFuturo(){
+  if(!FUTURO_ATIVO) return;
+  const novoNome = document.getElementById('fd-nome').value.trim();
+  if(!novoNome){ document.getElementById('fd-nome').value = FUTURO_ATIVO.nome; return; }
+  await atualizarCampoFuturo('nome', novoNome);
+}
+
+async function atualizarCampoFuturo(campo, valor){
+  if(!FUTURO_ATIVO) return;
+  const v = (typeof valor === 'string' ? valor.trim() : valor) || null;
+  if(FUTURO_ATIVO[campo] === v) return;
+  const { error } = await sb.from('crm_futuros').update({ [campo]: v }).eq('id', FUTURO_ATIVO.id);
+  if(error){ toast('Erro ao salvar'); console.error(error); return; }
+  FUTURO_ATIVO[campo] = v;
+  carregarFuturos();
+}
+
+async function excluirFuturo(){
+  if(!FUTURO_ATIVO) return;
+  if(!confirm('Remover esta pessoa da lista de adição futura?')) return;
+  const { error } = await sb.from('crm_futuros').delete().eq('id', FUTURO_ATIVO.id);
+  if(error){ toast('Erro ao excluir'); console.error(error); return; }
+  fecharOverlay('overlay-futuro-detalhe');
+  toast('Removido da lista');
+  carregarFuturos();
+}
+
+function efetivarFuturo(){
+  if(!FUTURO_ATIVO) return;
+  FUTURO_EFETIVANDO_ID = FUTURO_ATIVO.id;
+  fecharOverlay('overlay-futuro-detalhe');
+  ['nc-nome','nc-empresa','nc-telefone','nc-email','nc-obs','nc-followup'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nc-nome').value = FUTURO_ATIVO.nome;
+  document.getElementById('nc-empresa').value = FUTURO_ATIVO.empresa || '';
+  document.getElementById('nc-telefone').value = FUTURO_ATIVO.telefone || '';
+  document.getElementById('nc-email').value = FUTURO_ATIVO.email || '';
+  document.getElementById('nc-obs').value = FUTURO_ATIVO.observacao || '';
+  document.getElementById('nc-tipo').value = FUTURO_ATIVO.tipo || 'conhecido';
+  document.getElementById('nc-status').value = 'aguardando';
+  document.getElementById('overlay-novo').classList.add('show');
+}
+
 // ---------- Novo contato ----------
 function abrirNovoContato(){
   ['nc-nome','nc-empresa','nc-telefone','nc-email','nc-obs','nc-followup'].forEach(id=>document.getElementById(id).value='');
@@ -1102,6 +1317,13 @@ async function salvarNovoContato(){
   };
   const { error } = await sb.from('crm_contatos').insert(payload);
   if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+
+  if(FUTURO_EFETIVANDO_ID){
+    await sb.from('crm_futuros').delete().eq('id', FUTURO_EFETIVANDO_ID);
+    FUTURO_EFETIVANDO_ID = null;
+    carregarFuturos();
+  }
+
   fecharOverlay('overlay-novo');
   toast('Contato adicionado');
   await carregarContatos();
@@ -1318,6 +1540,7 @@ async function salvarInteracao(){
 
 function fecharOverlay(id){
   document.getElementById(id).classList.remove('show');
+  if(id === 'overlay-novo') FUTURO_EFETIVANDO_ID = null;
 }
 document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('show'); });
