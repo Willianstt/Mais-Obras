@@ -55,24 +55,23 @@
   main{ padding:16px 18px 60px; max-width:640px; margin:0 auto; }
 
   /* ---- Home ---- */
-  .cat-grid{ display:flex; flex-direction:column; gap:14px; padding-top:6px; }
+  .cat-grid{ display:flex; flex-direction:column; gap:11px; padding-top:5px; }
   .cat-tile{
-    --cat-color: var(--blue);
     display:flex; align-items:center; justify-content:space-between;
     width:100%; text-align:left; border:none; cursor:pointer;
     background:var(--paper-card);
     border:1.5px solid var(--line);
-    border-left:6px solid var(--cat-color);
-    border-radius:12px;
-    padding:26px 22px;
+    border-left:5px solid var(--ink);
+    border-radius:10px;
+    padding:21px 18px;
     box-shadow:var(--shadow);
   }
-  .cat-tile .cat-label{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:21px; color:var(--ink); }
+  .cat-tile .cat-label{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:var(--ink); }
   .cat-tile .cat-count{
-    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px;
-    color:var(--cat-color);
-    background:color-mix(in srgb, var(--cat-color) 14%, white);
-    border-radius:20px; padding:5px 14px; min-width:36px; text-align:center;
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12px;
+    color:#fff;
+    background:var(--ink);
+    border-radius:20px; padding:4px 11px; min-width:29px; text-align:center;
   }
   .cat-tile:active{ transform:translateY(1px); }
 
@@ -312,35 +311,35 @@
 
   <div id="view-home">
     <div class="cat-grid">
-      <button class="cat-tile" style="--cat-color:var(--blue)" onclick="abrirLista('corretor','Corretores')">
+      <button class="cat-tile" onclick="abrirLista('corretor','Corretores')">
         <span class="cat-label">Corretores</span>
         <span class="cat-count" id="count-corretor">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--amber)" onclick="abrirLista('arquiteto','Arquitetos')">
+      <button class="cat-tile" onclick="abrirLista('arquiteto','Arquitetos')">
         <span class="cat-label">Arquitetos</span>
         <span class="cat-count" id="count-arquiteto">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--green)" onclick="abrirLista(['conhecido','outro'],'Outros contatos')">
+      <button class="cat-tile" onclick="abrirLista(['conhecido','outro'],'Outros contatos')">
         <span class="cat-label">Outros contatos</span>
         <span class="cat-count" id="count-outros">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--ink-soft)" onclick="abrirFuturos()">
+      <button class="cat-tile" onclick="abrirFuturos()">
         <span class="cat-label">Adição futura</span>
         <span class="cat-count" id="count-futuros">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--coral)" onclick="abrirNotificacoes()">
+      <button class="cat-tile" onclick="abrirNotificacoes()">
         <span class="cat-label">Notificações</span>
         <span class="cat-count" id="count-notif">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--green)" onclick="abrirAgenda()">
+      <button class="cat-tile" onclick="abrirAgenda()">
         <span class="cat-label">Agenda de Reuniões</span>
         <span class="cat-count" id="count-reunioes">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--amber)" onclick="abrirMensagens()">
+      <button class="cat-tile" onclick="abrirMensagens()">
         <span class="cat-label">Mensagens (modelos)</span>
         <span class="cat-count" id="count-mensagens">0</span>
       </button>
-      <button class="cat-tile" style="--cat-color:var(--blue)" onclick="abrirEstatisticas()">
+      <button class="cat-tile" onclick="abrirEstatisticas()">
         <span class="cat-label">Gráfico de Contatos</span>
         <span class="cat-count" id="count-stats-total">0</span>
       </button>
