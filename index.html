@@ -700,6 +700,18 @@ let INTERACOES_ATIVAS = [];
 let EDITANDO_INTERACAO_ID = null;
 let CATEGORIA_ATIVA = null; // string ou array de tipos
 let CATEGORIA_DEFAULT_TIPO = "conhecido"; // usado ao criar contato dentro de "Outros"
+// Arquitetos do Núcleo D que ainda não receberam mensagem ficam em "Adição futura"
+let INTERAGIDOS = new Set();
+let INTERACOES_OK = false;
+function naoChamado(c){
+  if(!INTERACOES_OK) return false;
+  return c.tipo === 'arquiteto'
+    && /n[uú]cleo ?d|nucleod/i.test(c.observacoes || '')
+    && (c.status || 'aguardando') === 'aguardando'
+    && !c.proximo_followup && !c.reuniao_data
+    && !INTERAGIDOS.has(c.id);
+}
+function naoChamados(){ return CONTATOS.filter(naoChamado); }
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 
@@ -776,8 +788,8 @@ function abrirNotificacoes(){
 }
 
 function contarPorTipo(tipo){
-  if(Array.isArray(tipo)) return CONTATOS.filter(c=>tipo.includes(c.tipo)).length;
-  return CONTATOS.filter(c=>c.tipo===tipo).length;
+  if(Array.isArray(tipo)) return CONTATOS.filter(c=>tipo.includes(c.tipo) && !naoChamado(c)).length;
+  return CONTATOS.filter(c=>c.tipo===tipo && !naoChamado(c)).length;
 }
 
 // ---------- Carregar dados ----------
@@ -785,7 +797,11 @@ async function carregarContatos(){
   const { data, error } = await sb.from('crm_contatos').select('*').order('nome');
   if(error){ toast('Erro ao carregar contatos'); console.error(error); return; }
   CONTATOS = data || [];
+  const ints = await sb.from('crm_interacoes').select('contato_id');
+  if(ints.error){ INTERACOES_OK = false; console.error(ints.error); }
+  else { INTERAGIDOS = new Set((ints.data||[]).map(i=>i.contato_id)); INTERACOES_OK = true; }
   renderContadoresHome();
+  if(document.getElementById('view-futuros').style.display !== 'none') renderFuturos();
   carregarReunioes();
   if(document.getElementById('view-lista').style.display !== 'none') renderListaContatos();
   if(document.getElementById('view-notificacoes').style.display !== 'none') renderNotificacoes();
@@ -799,6 +815,7 @@ function renderContadoresHome(){
   const pendentes = CONTATOS.filter(c=>c.proximo_followup && c.proximo_followup <= hoje).length;
   document.getElementById('count-notif').textContent = pendentes;
   document.getElementById('count-stats-total').textContent = CONTATOS.length;
+  document.getElementById('count-futuros').textContent = FUTUROS.length + naoChamados().length;
 }
 
 // ---------- Lista por categoria ----------
@@ -811,6 +828,7 @@ function renderListaContatos(){
   const lista = CONTATOS.filter(c=>{
     if(Array.isArray(CATEGORIA_ATIVA)){ if(!CATEGORIA_ATIVA.includes(c.tipo)) return false; }
     else if(c.tipo !== CATEGORIA_ATIVA) return false;
+    if(naoChamado(c)) return false;
     if(busca && !(c.nome?.toLowerCase().includes(busca) || c.empresa?.toLowerCase().includes(busca))) return false;
     if(filtroAutor && c.ultima_interacao_autor !== filtroAutor) return false;
     if(filtroStatus && c.status !== filtroStatus) return false;
@@ -1182,14 +1200,23 @@ async function carregarFuturos(){
   const { data, error } = await sb.from('crm_futuros').select('*').order('created_at', { ascending:false });
   if(error){ toast('Erro ao carregar lista'); console.error(error); FUTUROS = []; }
   else FUTUROS = data || [];
-  document.getElementById('count-futuros').textContent = FUTUROS.length;
+  document.getElementById('count-futuros').textContent = FUTUROS.length + naoChamados().length;
   renderFuturos();
 }
 
 function renderFuturos(){
   const el = document.getElementById('lista-futuros');
+  const nc = naoChamados();
+  const buscaNC = (document.getElementById('busca-futuros')?.value || '').toLowerCase();
+  const ncFiltrados = buscaNC ? nc.filter(c=>(c.nome||'').toLowerCase().includes(buscaNC) || (c.empresa||'').toLowerCase().includes(buscaNC)) : nc;
+  const blocoNC = nc.length ? `
+    <div class="grupo-usuario-header">Arquitetos ainda não chamados · ${nc.length}</div>
+    <div class="searchbar"><input type="text" id="busca-futuros" placeholder="Buscar arquiteto ainda não chamado..." value="${escapeHtml(buscaNC)}" oninput="renderFuturosFoco()"></div>
+    <p class="card-meta" style="margin:0 0 10px;">Passam para Arquitetos quando recebem as 3 mensagens pela página de prospecção (ou quando você registra uma interação ou lembrete).</p>
+    ${ncFiltrados.length ? ncFiltrados.map(cardContato).join('') : `<div class="empty">Nenhum encontrado.</div>`}
+  ` : '';
   if(!FUTUROS.length){
-    el.innerHTML = `<div class="empty">Nenhuma adição futura registrada ainda.</div>`;
+    el.innerHTML = blocoNC || `<div class="empty">Nenhuma adição futura registrada ainda.</div>`;
     return;
   }
   const grupos = {};
@@ -1218,7 +1245,15 @@ function renderFuturos(){
         ${f.telefone ? `<div class="card-actions"><a class="btn whatsapp small" href="${whatsappLink(f.telefone)}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a></div>` : ''}
       </div>
     `).join('')}
-  `).join('');
+  `).join('') + blocoNC;
+}
+
+function renderFuturosFoco(){
+  const inp = document.getElementById('busca-futuros');
+  const pos = inp ? inp.selectionStart : null;
+  renderFuturos();
+  const novo = document.getElementById('busca-futuros');
+  if(novo){ novo.focus(); if(pos!==null) novo.setSelectionRange(pos,pos); }
 }
 
 function abrirNovoFuturo(){

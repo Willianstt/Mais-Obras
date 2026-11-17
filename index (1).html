@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Rede de Contatos — Consttruir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#EEF1EF;
+    --paper-card:#F8F9F7;
+    --ink:#16262B;
+    --ink-soft:#516266;
+    --blue:#2E6F8E;
+    --blue-soft:#DCE8ED;
+    --amber:#C77D2E;
+    --amber-soft:#F3E3D1;
+    --coral:#B9483D;
+    --coral-soft:#F3DBD8;
+    --green:#4C7A5E;
+    --green-soft:#DCE7DF;
+    --line:#CBD3CE;
+    --shadow: 0 1px 2px rgba(22,38,43,0.06), 0 4px 14px rgba(22,38,43,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+
+  .logo-bar{
+    background:#000; display:flex; align-items:center; justify-content:center;
+    padding:0 18px; width:100%; margin:0 auto; height:135px; overflow:hidden;
+    position:sticky; top:0; z-index:21;
+    border-radius:0;
+  }
+  .logo-img{ height:208px; width:208px; object-fit:cover; border-radius:20px; flex-shrink:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{ font-family:'Space Grotesk', sans-serif; letter-spacing:-0.01em; }
+  .mono{ font-family:'IBM Plex Mono', monospace; letter-spacing:0.01em; }
+
+  header.top{
+    padding:22px 18px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+    position:sticky; top:135px; z-index:20;
+    display:flex; align-items:center; gap:12px;
+  }
+  header.top button.back{
+    border:none; background:none; font-size:20px; color:var(--ink);
+    cursor:pointer; padding:2px 4px; display:none;
+  }
+  header.top button.back.show{ display:block; }
+  header.top .titles h1{ font-size:19px; font-weight:700; margin:0; }
+  header.top .titles p{ margin:2px 0 0; font-size:12px; color:var(--ink-soft); }
+
+  main{ padding:16px 18px 60px; max-width:640px; margin:0 auto; }
+
+  /* ---- Home ---- */
+  .cat-grid{ display:flex; flex-direction:column; gap:11px; padding-top:5px; }
+  .cat-tile{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; text-align:left; border:none; cursor:pointer;
+    background:var(--paper-card);
+    border:1.5px solid var(--line);
+    border-left:5px solid var(--ink);
+    border-radius:10px;
+    padding:21px 18px;
+    box-shadow:var(--shadow);
+  }
+  .cat-tile .cat-label{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:var(--ink); }
+  .cat-tile .cat-count{
+    font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12px;
+    color:#fff;
+    background:var(--ink);
+    border-radius:20px; padding:4px 11px; min-width:29px; text-align:center;
+  }
+  .cat-tile:active{ transform:translateY(1px); }
+
+  /* ---- Lista ---- */
+  .list-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .list-header h2{ margin:0; font-size:16px; }
+  .searchbar{ display:flex; gap:8px; margin-bottom:14px; }
+  .searchbar input{
+    flex:1; border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; font-size:13.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff;
+  }
+  .filtrosbar{ display:flex; gap:8px; margin-bottom:14px; }
+  .filtrosbar select{
+    flex:1; border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+    font-size:12.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff; color:var(--ink);
+  }
+
+  .agenda-nav{ display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:14px; }
+  .agenda-grid{
+    display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:16px;
+  }
+  .agenda-dow{ text-align:center; font-size:10.5px; font-weight:600; color:var(--ink-soft); padding-bottom:4px; }
+  .agenda-day{
+    aspect-ratio:1; border-radius:8px; border:1px solid var(--line); background:var(--paper-card);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    cursor:pointer; font-size:12.5px; color:var(--ink); position:relative; padding:2px;
+    overflow:hidden;
+  }
+  .agenda-day.vazio{ visibility:hidden; cursor:default; }
+  .agenda-day.hoje{ border-color:var(--blue); border-width:2px; font-weight:700; }
+  .agenda-day.selecionado{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .agenda-day.tem-reuniao{ background:var(--green-soft); border-color:var(--green); }
+  .agenda-day.tem-reuniao.selecionado{ background:var(--green); border-color:var(--green); }
+  .agenda-day .reuniao-nome{
+    font-size:7.5px; font-weight:600; color:var(--green); text-transform:uppercase; letter-spacing:0.02em;
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .agenda-day.selecionado .reuniao-nome{ color:#fff; }
+  .agenda-dia-card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+  }
+
+  .modelo-card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px; margin-bottom:10px; box-shadow:var(--shadow);
+  }
+  .modelo-titulo{ font-weight:600; font-size:14.5px; margin-bottom:6px; }
+  .modelo-conteudo{
+    font-size:13px; color:var(--ink-soft); white-space:pre-wrap; margin-bottom:10px;
+    max-height:90px; overflow-y:auto;
+  }
+  .modelo-actions{ display:flex; gap:8px; }
+
+  .stats-chart{ display:flex; align-items:flex-end; gap:3px; height:170px; padding-bottom:2px; }
+  .stats-bar-wrap{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+    height:100%; min-width:6px;
+  }
+  .stats-bar-count{ font-size:8.5px; font-weight:600; color:var(--blue); margin-bottom:2px; height:11px; }
+  .stats-bar{ width:100%; background:var(--blue); border-radius:3px 3px 0 0; min-height:2px; }
+  .stats-bar.zero{ background:var(--line); }
+  .stats-bar-label{
+    font-size:8px; color:var(--ink-soft); margin-top:5px; text-align:center; line-height:1.15;
+  }
+  .stats-bar-label.vertical{
+    writing-mode:vertical-rl; text-orientation:mixed; max-height:32px; margin-top:4px;
+  }
+
+  .grupo-usuario-header{
+    font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--ink-soft); margin:18px 0 8px; padding-bottom:5px; border-bottom:1px solid var(--line);
+  }
+  .grupo-usuario-header:first-child{ margin-top:0; }
+
+  .empty{ font-size:13px; color:var(--ink-soft); padding:14px 0; border-top:1px dashed var(--line); }
+
+  .card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 14px 12px; margin-bottom:10px; box-shadow:var(--shadow); position:relative; cursor:pointer;
+  }
+  .card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .card-name{ font-weight:600; font-size:15px; }
+  .card-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .card-meta span + span::before{ content:"·"; margin:0 5px; color:var(--line); }
+
+  .stamp{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.06em; border:1.5px dashed currentColor; border-radius:5px; padding:3px 7px;
+    transform:rotate(-3deg); white-space:nowrap; flex-shrink:0;
+  }
+  .stamp.aguardando{ color:var(--amber); }
+  .stamp.agendado{ color:var(--blue); }
+  .stamp.potencial_futuro{ color:var(--ink-soft); }
+  .stamp.acompanhamento{ color:var(--blue); }
+  .stamp.potencial_cliente{ color:var(--green); }
+
+  .card-actions{ display:flex; gap:8px; margin-top:10px; }
+  .btn{
+    font-family:'IBM Plex Sans',sans-serif; font-weight:600; font-size:12.5px;
+    border-radius:7px; border:1px solid var(--line); background:#fff;
+    padding:8px 10px; cursor:pointer; color:var(--ink); display:inline-flex; align-items:center; gap:5px;
+  }
+  .btn.primary{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .btn.whatsapp{ background:var(--green-soft); border-color:var(--green); color:var(--green); }
+  .btn.ghost{ background:none; }
+  .btn.small{ padding:6px 9px; font-size:11.5px; }
+  .btn:active{ transform:translateY(1px); }
+  .btn-add{
+    border:none; background:var(--blue); color:#fff; border-radius:8px;
+    padding:9px 14px; font-weight:600; font-size:13px; cursor:pointer;
+  }
+
+  .fab{
+    position:fixed; right:20px; bottom:24px; z-index:30;
+    width:54px; height:54px; border-radius:50%;
+    background:var(--blue); color:#fff; border:none;
+    font-size:26px; box-shadow:0 6px 18px rgba(46,111,142,0.4);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+
+  .overlay{
+    position:fixed; inset:0; background:rgba(22,38,43,0.45);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background:var(--paper); width:100%; max-width:640px;
+    border-radius:16px 16px 0 0; padding:18px 18px 26px;
+    max-height:90vh; overflow-y:auto; position:relative;
+  }
+  .sheet h3{ margin:0 0 14px; font-size:17px; }
+  .det-nome-input{
+    display:block; width:100%; font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:19px; color:var(--ink); border:1px solid transparent; border-bottom:1px dashed var(--line);
+    background:none; padding:4px 2px; margin:0 0 6px -2px; border-radius:6px;
+  }
+  .det-nome-input:focus{ outline:none; border:1px solid var(--blue); background:#fff; }
+  .field{ margin-bottom:12px; }
+  .field label{
+    display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:5px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:10px 11px; font-size:14px; font-family:'IBM Plex Sans',sans-serif;
+    background:#fff; color:var(--ink);
+  }
+  .field textarea{ min-height:70px; resize:vertical; }
+  .row2{ display:flex; gap:10px; }
+  .row2 .field{ flex:1; }
+  .sheet-actions{ display:flex; gap:10px; margin-top:16px; }
+  .sheet-actions .btn{ flex:1; justify-content:center; padding:11px; font-size:13.5px; }
+  .close-x{ position:absolute; top:14px; right:16px; background:none; border:none; font-size:20px; color:var(--ink-soft); cursor:pointer; }
+
+  .divider{ border-top:1px dashed var(--line); margin:16px 0 12px; }
+
+  .timeline{ margin:6px 0 14px; }
+  .tl-item{ padding:9px 0; border-bottom:1px solid var(--line); }
+  .tl-item:last-child{ border-bottom:none; }
+  .tl-top{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--ink-soft); }
+  .tl-top .mono{ font-size:11px; }
+  .tl-resumo{ font-size:13.5px; margin-top:3px; }
+  .tl-autor{ font-weight:600; color:var(--ink); }
+  .tl-actions{ display:flex; gap:4px; }
+  .tl-actions button{
+    border:none; background:none; cursor:pointer; font-size:13px; color:var(--ink-soft);
+    padding:2px 5px; border-radius:5px;
+  }
+  .tl-actions button:hover{ background:var(--paper); }
+  .tl-edit-form{ margin-top:6px; padding:10px; background:var(--paper); border-radius:8px; }
+  .tl-edit-form textarea{ width:100%; min-height:56px; font-size:13px; border:1px solid var(--line); border-radius:6px; padding:7px; font-family:'IBM Plex Sans',sans-serif; margin-bottom:8px; }
+  .tl-edit-form .row2{ margin-bottom:8px; }
+  .tl-edit-form select{ font-size:12.5px; padding:7px; border:1px solid var(--line); border-radius:6px; }
+  .tl-edit-actions{ display:flex; gap:8px; }
+
+  .lembrete-box{
+    background:var(--blue-soft); border-radius:10px; padding:12px 14px; margin-bottom:16px;
+    display:flex; align-items:flex-end; gap:10px;
+  }
+  .lembrete-box .field{ margin:0; flex:1; }
+  .lembrete-box label{ color:var(--blue); }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px;
+    font-size:13px; z-index:60; opacity:0; transition:opacity .25s; pointer-events:none;
+    max-width:90vw; text-align:center;
+  }
+  .toast.show{ opacity:1; }
+
+  .notif-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:13px 0; border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .notif-row:last-child{ border-bottom:none; }
+  .notif-name{ font-weight:600; font-size:14.5px; }
+  .notif-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .notif-date{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;
+    border-radius:16px; padding:5px 11px; white-space:nowrap;
+  }
+  .notif-date.atrasado{ background:var(--coral-soft); color:var(--coral); }
+  .notif-date.hoje{ background:var(--amber-soft); color:var(--amber); }
+  .notif-date.futuro{ background:var(--paper-card); color:var(--ink-soft); border:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<div class="logo-bar">
+  <img src="data:image/jpeg;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//2gAMAwEAAgADAAAAIQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPOBDBCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANPNODDLDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJPPDCAAMIFPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPMMAEIAAABPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPHPPPPPPPLOCAAAAAAAAAAAAAAAAAAAAAAAAAAAAIIEMAAAIEMEAAAAAAAAAAAAAAAAAAADCMFBKBLKBDGDKCDDBBDCOMPPAFBIOOGAAAAAAAAFCAHKFPPHFLLHAFKAAFAALHGPAFFALCMAAAAAAAANCAPJGMPNMLHLNFKAAFAALKJHANNAOPIAAAAAAAAEAMAEIEMEIIAEAEAAAIAAIAIAEAEEIAMAAAAAAAAAAAAAAAAAFIDHMEPCHPHLAAAAAAAAAAAAAAAAAAAAAAAAAAAAEEMEAEAIMEMMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACAAMAAAAQ888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888MY40488888888888888888888888888888888888cIw0wMsc408888888888888888888888888888MMM8c088M8888888888888888888888888888888U88s8c88888U8888888888888888888888888888U88888888s4c888888888888888888888888888888sMMMcccsc88888888888888888884Q8cg0Usg4YsAgEIAAMIAw8c08Ygg0gc88888888oc8ocsAEYo40s0oo88U88EoIU8oAAQ4I88888888s08MwsUU4ows88oo88U88Uwcw4IgAUYc88888888ss88888s8sMMMc8M88M8ss8sMsssc88888888888888888888o8IcgAEUQs480888888888888888888888888888scMcMsMMscMMc8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888/8QAFBEBAAAAAAAAAAAAAAAAAAAAoP/aAAgBAgEBPwBIH//EABQRAQAAAAAAAAAAAAAAAAAAAKD/2gAIAQMBAT8ASB//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" alt="Consttruir" class="logo-img">
+</div>
+
+<header class="top">
+  <button class="back" id="btn-back" onclick="voltarHome()">←</button>
+  <div class="titles">
+    <h1 id="header-title">Rede de Contatos</h1>
+    <p id="header-sub">Corretores, arquitetos e conhecidos — divulgação Consttruir</p>
+  </div>
+  <button class="back show" id="btn-logout" style="display:none; margin-left:auto;" onclick="sair()" title="Sair">⏻</button>
+</header>
+
+<div id="view-login" style="display:none;">
+  <div style="max-width:360px; margin:70px auto 0; padding:0 22px;">
+    <h1 style="font-size:22px; margin-bottom:4px;">Rede de Contatos</h1>
+    <p style="color:var(--ink-soft); font-size:13px; margin-bottom:26px;">Entre com seu nome pra continuar</p>
+    <div class="field"><label>Nome</label>
+      <select id="login-nome">
+        <option value="Willian">Willian</option>
+        <option value="Carlos">Carlos</option>
+        <option value="Jeanquiel">Jeanquiel</option>
+        <option value="Cristiam">Cristiam</option>
+      </select>
+    </div>
+    <div class="field"><label>Senha</label><input type="password" id="login-senha" onkeydown="if(event.key==='Enter') fazerLogin()"></div>
+    <button class="btn primary" style="width:100%; justify-content:center; padding:11px; margin-top:6px;" onclick="fazerLogin()">Entrar</button>
+    <p id="login-erro" style="color:var(--coral); font-size:12.5px; margin-top:10px; display:none;">Senha incorreta.</p>
+  </div>
+</div>
+
+<main id="app-main" style="display:none;">
+
+  <div id="view-home">
+    <div class="cat-grid">
+      <button class="cat-tile" onclick="abrirLista('corretor','Corretores')">
+        <span class="cat-label">Corretores</span>
+        <span class="cat-count" id="count-corretor">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirLista('arquiteto','Arquitetos')">
+        <span class="cat-label">Arquitetos</span>
+        <span class="cat-count" id="count-arquiteto">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirLista(['conhecido','outro'],'Outros contatos')">
+        <span class="cat-label">Outros contatos</span>
+        <span class="cat-count" id="count-outros">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirFuturos()">
+        <span class="cat-label">Adição futura</span>
+        <span class="cat-count" id="count-futuros">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirNotificacoes()">
+        <span class="cat-label">Notificações</span>
+        <span class="cat-count" id="count-notif">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirAgenda()">
+        <span class="cat-label">Agenda de Reuniões</span>
+        <span class="cat-count" id="count-reunioes">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirMensagens()">
+        <span class="cat-label">Mensagens (modelos)</span>
+        <span class="cat-count" id="count-mensagens">0</span>
+      </button>
+      <button class="cat-tile" onclick="abrirEstatisticas()">
+        <span class="cat-label">Gráfico de Contatos</span>
+        <span class="cat-count" id="count-stats-total">0</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="view-lista" style="display:none;">
+    <div class="list-header">
+      <h2 id="lista-titulo">Contatos</h2>
+      <button class="btn-add" onclick="abrirNovoContato()">+ Novo contato</button>
+    </div>
+    <div class="searchbar">
+      <input type="text" id="busca" placeholder="Buscar por nome ou empresa...">
+    </div>
+    <div class="filtrosbar">
+      <select id="filtro-autor-lista" onchange="renderListaContatos()">
+        <option value="">Todos os usuários</option>
+        <option value="Willian">Willian</option>
+        <option value="Carlos">Carlos</option>
+        <option value="Jeanquiel">Jeanquiel</option>
+        <option value="Cristiam">Cristiam</option>
+      </select>
+      <select id="filtro-status-lista" onchange="renderListaContatos()">
+        <option value="">Todos os status</option>
+        <option value="aguardando">Aguardando</option>
+        <option value="agendado">Agendado</option>
+        <option value="potencial_futuro">Potencial futuro</option>
+        <option value="acompanhamento">Acompanhamento</option>
+        <option value="potencial_cliente">Potencial cliente</option>
+      </select>
+    </div>
+    <div id="lista-contatos"></div>
+  </div>
+
+  <div id="view-notificacoes" style="display:none;">
+    <div class="filtrosbar" style="margin-bottom:10px;">
+      <select id="filtro-autor-notif" onchange="renderNotificacoes()">
+        <option value="">Todos os usuários</option>
+        <option value="Willian">Willian</option>
+        <option value="Carlos">Carlos</option>
+        <option value="Jeanquiel">Jeanquiel</option>
+        <option value="Cristiam">Cristiam</option>
+      </select>
+    </div>
+    <div class="card" style="padding:4px 14px;">
+      <div id="lista-notificacoes"></div>
+    </div>
+  </div>
+
+  <div id="view-agenda" style="display:none;">
+    <div class="agenda-nav">
+      <button class="btn small" onclick="mudarMesAgenda(-1)">‹</button>
+      <span id="agenda-mes-label" class="mono" style="font-weight:600;"></span>
+      <button class="btn small" onclick="mudarMesAgenda(1)">›</button>
+    </div>
+    <div class="agenda-grid" id="agenda-grid"></div>
+    <div id="agenda-dia-detalhe"></div>
+  </div>
+
+  <div id="view-mensagens" style="display:none;">
+    <div class="list-header">
+      <h2>Mensagens modelo</h2>
+      <button class="btn-add" onclick="abrirNovoModelo()">+ Novo modelo</button>
+    </div>
+    <div id="lista-modelos"></div>
+  </div>
+
+  <div id="view-stats" style="display:none;">
+    <div class="chiprow" id="stats-filtros">
+      <span class="chip active" data-modo="semana">Essa semana</span>
+      <span class="chip" data-modo="mes">Esse mês</span>
+      <span class="chip" data-modo="selecionar">Selecionar mês</span>
+    </div>
+    <input type="month" id="stats-mes-input" style="display:none; margin-bottom:14px; width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:13.5px; font-family:'IBM Plex Sans',sans-serif; background:#fff;">
+    <div class="card" style="padding:16px 14px 10px;">
+      <div id="stats-resumo" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></div>
+      <div class="stats-chart" id="stats-chart"></div>
+    </div>
+  </div>
+
+  <div id="view-futuros" style="display:none;">
+    <div class="list-header">
+      <h2>Adição futura</h2>
+      <button class="btn-add" onclick="abrirNovoFuturo()">+ Nova adição</button>
+    </div>
+    <div id="lista-futuros"></div>
+  </div>
+
+</main>
+
+<!-- Modal: nova adição futura -->
+<div class="overlay" id="overlay-futuro">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-futuro')">✕</button>
+    <h3>Nova adição futura</h3>
+    <div class="field"><label>Nome*</label><input id="nf-nome" placeholder="Nome da pessoa"></div>
+    <div class="field"><label>Tipo (se já souber)</label>
+      <select id="nf-tipo">
+        <option value="">Ainda não sei</option>
+        <option value="corretor">Corretor</option>
+        <option value="arquiteto">Arquiteto</option>
+        <option value="conhecido">Conhecido</option>
+        <option value="outro">Outro</option>
+      </select>
+    </div>
+    <div class="field"><label>Empresa / Imobiliária</label><input id="nf-empresa"></div>
+    <div class="row2">
+      <div class="field"><label>WhatsApp</label><input id="nf-telefone" placeholder="49 9 9999-9999"></div>
+      <div class="field"><label>E-mail</label><input id="nf-email"></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea id="nf-obs" placeholder="Onde conheceu, contexto..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarFuturo()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: detalhe adição futura -->
+<div class="overlay" id="overlay-futuro-detalhe">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-futuro-detalhe')">✕</button>
+    <input id="fd-nome" class="det-nome-input" onblur="atualizarNomeFuturo()" onkeydown="if(event.key==='Enter') this.blur()">
+    <div class="card-meta" id="fd-meta" style="margin-bottom:14px;"></div>
+    <div class="row2">
+      <div class="field"><label>Tipo (se já souber)</label>
+        <select id="fd-tipo" onchange="atualizarCampoFuturo('tipo', this.value)">
+          <option value="">Ainda não sei</option>
+          <option value="corretor">Corretor</option>
+          <option value="arquiteto">Arquiteto</option>
+          <option value="conhecido">Conhecido</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Empresa / Imobiliária</label><input id="fd-empresa" onblur="atualizarCampoFuturo('empresa', this.value)"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>WhatsApp</label><input id="fd-telefone" onblur="atualizarCampoFuturo('telefone', this.value)"></div>
+      <div class="field"><label>E-mail</label><input id="fd-email" onblur="atualizarCampoFuturo('email', this.value)"></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea id="fd-obs" onblur="atualizarCampoFuturo('observacao', this.value)"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="efetivarFuturo()">Efetivar contato</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn small" style="width:100%; justify-content:center; color:var(--coral); border-color:var(--coral);" onclick="excluirFuturo()">Excluir da lista</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: novo/editar modelo de mensagem -->
+<div class="overlay" id="overlay-modelo">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-modelo')">✕</button>
+    <h3 id="modelo-titulo-sheet">Novo modelo</h3>
+    <div class="field"><label>Título</label><input id="mo-titulo" placeholder="Ex: Primeira abordagem"></div>
+    <div class="field"><label>Mensagem</label><textarea id="mo-conteudo" style="min-height:130px;" placeholder="Escreva o texto da mensagem..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarModelo()">Salvar modelo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: novo contato -->
+<div class="overlay" id="overlay-novo">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-novo')">✕</button>
+    <h3>Novo contato</h3>
+    <div class="field"><label>Nome*</label><input id="nc-nome"></div>
+    <div class="row2">
+      <div class="field"><label>Tipo</label>
+        <select id="nc-tipo">
+          <option value="corretor">Corretor</option>
+          <option value="arquiteto">Arquiteto</option>
+          <option value="conhecido">Conhecido</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="nc-status">
+          <option value="aguardando">Aguardando</option>
+          <option value="agendado">Agendado</option>
+          <option value="potencial_futuro">Potencial futuro</option>
+          <option value="acompanhamento">Acompanhamento</option>
+          <option value="potencial_cliente">Potencial cliente</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Empresa / Imobiliária</label><input id="nc-empresa"></div>
+    <div class="row2">
+      <div class="field"><label>WhatsApp</label><input id="nc-telefone" placeholder="49 9 9999-9999"></div>
+      <div class="field"><label>E-mail</label><input id="nc-email"></div>
+    </div>
+    <div class="field"><label>Observações</label><textarea id="nc-obs"></textarea></div>
+    <div class="field"><label>Me lembrar em</label><input type="date" id="nc-followup"></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarNovoContato()">Salvar contato</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: detalhe / interação -->
+<div class="overlay" id="overlay-detalhe">
+  <div class="sheet">
+    <button class="close-x" onclick="fecharOverlay('overlay-detalhe')">✕</button>
+    <input id="det-nome" class="det-nome-input" onblur="atualizarNome()" onkeydown="if(event.key==='Enter') this.blur()">
+    <div class="card-meta" id="det-meta" style="margin-bottom:14px;"></div>
+
+    <div class="row2">
+      <div class="field"><label>Status</label>
+        <select id="det-status" onchange="atualizarStatus()">
+          <option value="aguardando">Aguardando</option>
+          <option value="agendado">Agendado</option>
+          <option value="potencial_futuro">Potencial futuro</option>
+          <option value="acompanhamento">Acompanhamento</option>
+          <option value="potencial_cliente">Potencial cliente</option>
+        </select>
+      </div>
+      <div class="field"><label>WhatsApp</label><input id="det-telefone" onblur="atualizarTelefone()"></div>
+    </div>
+
+    <div class="lembrete-box" id="reuniao-box" style="display:none; background:var(--green-soft); flex-wrap:wrap;">
+      <div class="field" style="flex:1; min-width:120px;">
+        <label style="color:var(--green);">📅 Data da reunião</label>
+        <input type="date" id="det-reuniao-data">
+      </div>
+      <div class="field" style="flex:0 0 110px;">
+        <label style="color:var(--green);">Horário</label>
+        <input type="time" id="det-reuniao-hora">
+      </div>
+      <button class="btn primary small" style="background:var(--green); border-color:var(--green);" onclick="salvarReuniao()">Salvar</button>
+      <button class="btn small" style="background:#fff; color:var(--coral); border-color:var(--coral);" onclick="cancelarReuniao()">Cancelar reunião</button>
+    </div>
+
+    <div class="lembrete-box">
+      <div class="field">
+        <label>🔔 Me lembrar de chamar de novo em</label>
+        <input type="date" id="det-lembrete">
+      </div>
+      <button class="btn primary small" onclick="salvarLembrete()">Salvar</button>
+    </div>
+
+    <div class="divider"></div>
+    <h3 style="font-size:14px; margin-bottom:2px;">Histórico</h3>
+    <div class="timeline" id="det-timeline"></div>
+
+    <div class="divider"></div>
+    <h3 style="font-size:14px;">Registrar nova atualização</h3>
+    <div class="row2">
+      <div class="field"><label>Quem fez o contato</label>
+        <select id="ni-autor">
+          <option value="Willian">Willian</option>
+          <option value="Carlos">Carlos</option>
+          <option value="Jeanquiel">Jeanquiel</option>
+          <option value="Cristiam">Cristiam</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipo</label>
+        <select id="ni-tipo">
+          <option value="whatsapp">WhatsApp</option>
+          <option value="ligacao">Ligação</option>
+          <option value="reuniao">Reunião</option>
+          <option value="email">E-mail</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Resumo</label><textarea id="ni-resumo" placeholder="O que foi conversado..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn primary" onclick="salvarInteracao()">Salvar atualização</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fab-add" style="display:none;" onclick="abrirNovoContato()">+</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== LOGIN ======
+const USUARIOS = {
+  "Willian": "willian123",
+  "Carlos": "carlos123",
+  "Jeanquiel": "jeanquiel123",
+  "Cristiam": "cristiam123"
+};
+let USUARIO_ATUAL = null;
+
+function fazerLogin(){
+  const nome = document.getElementById('login-nome').value;
+  const senha = document.getElementById('login-senha').value;
+  if(USUARIOS[nome] === senha){
+    USUARIO_ATUAL = nome;
+    localStorage.setItem('crm_usuario', nome);
+    document.getElementById('login-erro').style.display = 'none';
+    iniciarApp();
+  } else {
+    document.getElementById('login-erro').style.display = 'block';
+  }
+}
+
+function sair(){
+  localStorage.removeItem('crm_usuario');
+  USUARIO_ATUAL = null;
+  document.getElementById('view-login').style.display = 'block';
+  document.getElementById('app-main').style.display = 'none';
+  document.getElementById('header-title').textContent = 'Rede de Contatos';
+  document.getElementById('header-sub').textContent = 'Corretores, arquitetos e conhecidos — divulgação Consttruir';
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('btn-back').classList.remove('show');
+  document.getElementById('login-senha').value = '';
+}
+
+function iniciarApp(){
+  document.getElementById('view-login').style.display = 'none';
+  document.getElementById('app-main').style.display = 'block';
+  document.getElementById('btn-logout').style.display = 'block';
+  mostrarView('home');
+  carregarContatos();
+  carregarModelos();
+  carregarFuturos();
+}
+
+(function tentarSessaoSalva(){
+  const salvo = localStorage.getItem('crm_usuario');
+  if(salvo && USUARIOS[salvo]){
+    USUARIO_ATUAL = salvo;
+  } else {
+    document.getElementById('view-login').style.display = 'block';
+  }
+})();
+
+// ====== CONFIG SUPABASE ======
+const SUPABASE_URL = "https://kyfbrtpkqeipwiuwhpnm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ImaXU_FzamLLgW9JnzFrXg_9n9O0Z2p";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const TIPO_LABEL = { corretor:"Corretor", arquiteto:"Arquiteto", conhecido:"Conhecido", outro:"Outro" };
+const STATUS_LABEL = {
+  aguardando:"Aguardando", agendado:"Agendado", potencial_futuro:"Potencial futuro",
+  acompanhamento:"Acompanhamento", potencial_cliente:"Potencial cliente"
+};
+
+let CONTATOS = [];
+let CONTATO_ATIVO = null;
+let INTERACOES_ATIVAS = [];
+let EDITANDO_INTERACAO_ID = null;
+let CATEGORIA_ATIVA = null; // string ou array de tipos
+let CATEGORIA_DEFAULT_TIPO = "conhecido"; // usado ao criar contato dentro de "Outros"
+// Arquitetos do Núcleo D que ainda não receberam mensagem ficam em "Adição futura"
+let INTERAGIDOS = new Set();
+let INTERACOES_OK = false;
+function naoChamado(c){
+  if(!INTERACOES_OK) return false;
+  return c.tipo === 'arquiteto'
+    && /n[uú]cleo ?d|nucleod/i.test(c.observacoes || '')
+    && (c.status || 'aguardando') === 'aguardando'
+    && !c.proximo_followup && !c.reuniao_data
+    && !INTERAGIDOS.has(c.id);
+}
+function naoChamados(){ return CONTATOS.filter(naoChamado); }
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+function diasDesde(dataStr){
+  if(!dataStr) return null;
+  const d = new Date(dataStr + "T00:00:00");
+  const hoje = new Date(todayISO() + "T00:00:00");
+  return Math.round((hoje - d) / 86400000);
+}
+
+function toast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), ms || 1800);
+}
+
+function fmtData(d){
+  if(!d) return "—";
+  const [y,m,day] = d.split("-");
+  return `${day}/${m}/${y}`;
+}
+
+function whatsappLink(tel){
+  if(!tel) return null;
+  let digits = tel.replace(/\D/g,"");
+  if(digits.length <= 11) digits = "55" + digits;
+  return `https://wa.me/${digits}`;
+}
+
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Navegação ----------
+function mostrarView(view){
+  document.getElementById('view-home').style.display = view==='home' ? 'block':'none';
+  document.getElementById('view-lista').style.display = view==='lista' ? 'block':'none';
+  document.getElementById('view-notificacoes').style.display = view==='notificacoes' ? 'block':'none';
+  document.getElementById('view-agenda').style.display = view==='agenda' ? 'block':'none';
+  document.getElementById('view-mensagens').style.display = view==='mensagens' ? 'block':'none';
+  document.getElementById('view-stats').style.display = view==='stats' ? 'block':'none';
+  document.getElementById('view-futuros').style.display = view==='futuros' ? 'block':'none';
+  document.getElementById('btn-back').classList.toggle('show', view!=='home');
+  document.getElementById('fab-add').style.display = view==='lista' ? 'none' : 'none';
+}
+
+function voltarHome(){
+  mostrarView('home');
+  document.getElementById('header-title').textContent = 'Rede de Contatos';
+  document.getElementById('header-sub').textContent = 'Corretores, arquitetos e conhecidos — divulgação Consttruir';
+}
+
+function abrirLista(tipo, label){
+  CATEGORIA_ATIVA = tipo;
+  CATEGORIA_DEFAULT_TIPO = Array.isArray(tipo) ? 'conhecido' : tipo;
+  document.getElementById('lista-titulo').textContent = label;
+  document.getElementById('header-title').textContent = label;
+  document.getElementById('header-sub').textContent = `${contarPorTipo(tipo)} contato(s)`;
+  document.getElementById('busca').value = '';
+  document.getElementById('filtro-autor-lista').value = '';
+  document.getElementById('filtro-status-lista').value = '';
+  mostrarView('lista');
+  renderListaContatos();
+}
+
+function abrirNotificacoes(){
+  document.getElementById('header-title').textContent = 'Notificações';
+  document.getElementById('header-sub').textContent = 'Próximas interações, da mais próxima pra mais distante';
+  mostrarView('notificacoes');
+  renderNotificacoes();
+}
+
+function contarPorTipo(tipo){
+  if(Array.isArray(tipo)) return CONTATOS.filter(c=>tipo.includes(c.tipo) && !naoChamado(c)).length;
+  return CONTATOS.filter(c=>c.tipo===tipo && !naoChamado(c)).length;
+}
+
+// ---------- Carregar dados ----------
+async function carregarContatos(){
+  const { data, error } = await sb.from('crm_contatos').select('*').order('nome');
+  if(error){ toast('Erro ao carregar contatos'); console.error(error); return; }
+  CONTATOS = data || [];
+  const ints = await sb.from('crm_interacoes').select('contato_id');
+  if(ints.error){ INTERACOES_OK = false; console.error(ints.error); }
+  else { INTERAGIDOS = new Set((ints.data||[]).map(i=>i.contato_id)); INTERACOES_OK = true; }
+  renderContadoresHome();
+  if(document.getElementById('view-futuros').style.display !== 'none') renderFuturos();
+  carregarReunioes();
+  if(document.getElementById('view-lista').style.display !== 'none') renderListaContatos();
+  if(document.getElementById('view-notificacoes').style.display !== 'none') renderNotificacoes();
+}
+
+function renderContadoresHome(){
+  document.getElementById('count-corretor').textContent = contarPorTipo('corretor');
+  document.getElementById('count-arquiteto').textContent = contarPorTipo('arquiteto');
+  document.getElementById('count-outros').textContent = contarPorTipo(['conhecido','outro']);
+  const hoje = todayISO();
+  const pendentes = CONTATOS.filter(c=>c.proximo_followup && c.proximo_followup <= hoje).length;
+  document.getElementById('count-notif').textContent = pendentes;
+  document.getElementById('count-stats-total').textContent = CONTATOS.length;
+  document.getElementById('count-futuros').textContent = FUTUROS.length + naoChamados().length;
+}
+
+// ---------- Lista por categoria ----------
+document.getElementById('busca').addEventListener('input', renderListaContatos);
+
+function renderListaContatos(){
+  const busca = document.getElementById('busca').value.toLowerCase();
+  const filtroAutor = document.getElementById('filtro-autor-lista').value;
+  const filtroStatus = document.getElementById('filtro-status-lista').value;
+  const lista = CONTATOS.filter(c=>{
+    if(Array.isArray(CATEGORIA_ATIVA)){ if(!CATEGORIA_ATIVA.includes(c.tipo)) return false; }
+    else if(c.tipo !== CATEGORIA_ATIVA) return false;
+    if(naoChamado(c)) return false;
+    if(busca && !(c.nome?.toLowerCase().includes(busca) || c.empresa?.toLowerCase().includes(busca))) return false;
+    if(filtroAutor && c.ultima_interacao_autor !== filtroAutor) return false;
+    if(filtroStatus && c.status !== filtroStatus) return false;
+    return true;
+  });
+  const el = document.getElementById('lista-contatos');
+  el.innerHTML = lista.length ? lista.map(cardContato).join('') : `<div class="empty">Nenhum contato encontrado.</div>`;
+}
+
+function cardContato(c){
+  const wl = whatsappLink(c.telefone);
+  return `
+  <div class="card" onclick="abrirDetalhe('${c.id}')">
+    <div class="card-top">
+      <div>
+        <div class="card-name">${escapeHtml(c.nome)}</div>
+        <div class="card-meta">
+          ${c.empresa ? `<span>${escapeHtml(c.empresa)}</span>` : ''}
+          <span>último: ${fmtData(c.ultima_interacao_data)}${c.ultima_interacao_autor ? ' · '+escapeHtml(c.ultima_interacao_autor) : ''}</span>
+        </div>
+      </div>
+      <span class="stamp ${c.status}">${STATUS_LABEL[c.status]||c.status}</span>
+    </div>
+    <div class="card-actions">
+      ${wl ? `<a class="btn whatsapp small" href="${wl}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a>` : ''}
+      <button class="btn ghost small" onclick="event.stopPropagation(); abrirDetalhe('${c.id}')">Ver / atualizar</button>
+    </div>
+  </div>`;
+}
+
+// ---------- Notificações ----------
+function renderNotificacoes(){
+  const hoje = todayISO();
+  const filtroAutor = document.getElementById('filtro-autor-notif').value;
+  const comLembrete = CONTATOS.filter(c=>c.proximo_followup)
+    .filter(c=> !filtroAutor || c.ultima_interacao_autor === filtroAutor)
+    .sort((a,b)=> a.proximo_followup < b.proximo_followup ? -1 : a.proximo_followup > b.proximo_followup ? 1 : 0);
+
+  const el = document.getElementById('lista-notificacoes');
+  if(!comLembrete.length){
+    el.innerHTML = `<div class="empty">Nenhum lembrete agendado.</div>`;
+    return;
+  }
+  el.innerHTML = comLembrete.map(c=>{
+    let classe = 'futuro', texto = fmtData(c.proximo_followup);
+    if(c.proximo_followup < hoje){ classe='atrasado'; texto = 'atrasado · '+fmtData(c.proximo_followup); }
+    else if(c.proximo_followup === hoje){ classe='hoje'; texto = 'hoje'; }
+    return `
+    <div class="notif-row" onclick="abrirDetalhe('${c.id}')">
+      <div>
+        <div class="notif-name">${escapeHtml(c.nome)}</div>
+        <div class="notif-meta">
+          <span class="stamp ${c.status}" style="margin-right:6px;">${STATUS_LABEL[c.status]||c.status}</span>
+          ${TIPO_LABEL[c.tipo]||c.tipo}${c.empresa ? ' · '+escapeHtml(c.empresa) : ''}
+        </div>
+      </div>
+      <span class="notif-date ${classe}">${texto}</span>
+    </div>`;
+  }).join('');
+}
+
+// ---------- Agenda de Reuniões ----------
+let AGENDA_MES_ATUAL = new Date();
+let AGENDA_REUNIOES = []; // { data, contato_id, contato_nome, resumo, autor }
+let AGENDA_DIA_SELECIONADO = null;
+
+async function abrirAgenda(){
+  document.getElementById('header-title').textContent = 'Agenda de Reuniões';
+  document.getElementById('header-sub').textContent = 'Reuniões registradas, organizadas por dia';
+  mostrarView('agenda');
+  AGENDA_MES_ATUAL = new Date();
+  AGENDA_DIA_SELECIONADO = null;
+  await carregarReunioes();
+  renderAgenda();
+}
+
+async function carregarReunioes(){
+  const { data, error } = await sb.from('crm_interacoes').select('*').eq('tipo','reuniao').order('data');
+  const doHistorico = error ? [] : (data||[]).map(i=>{
+    const contato = CONTATOS.find(c=>c.id===i.contato_id);
+    return { fonte:'historico', data: i.data, hora: null, contato_id: i.contato_id, contato_nome: contato ? contato.nome : 'Contato removido', resumo: i.resumo, autor: i.autor };
+  });
+
+  const agendadas = CONTATOS.filter(c=>c.reuniao_data).map(c=>({
+    fonte:'agendada', data: c.reuniao_data, hora: c.reuniao_hora, contato_id: c.id, contato_nome: c.nome,
+    resumo: c.reuniao_hora ? `Reunião agendada às ${c.reuniao_hora}` : 'Reunião agendada', autor: c.reuniao_autor || null
+  }));
+
+  AGENDA_REUNIOES = [...doHistorico, ...agendadas];
+  document.getElementById('count-reunioes').textContent = AGENDA_REUNIOES.filter(r=>r.data >= todayISO()).length;
+}
+
+function mudarMesAgenda(delta){
+  AGENDA_MES_ATUAL = new Date(AGENDA_MES_ATUAL.getFullYear(), AGENDA_MES_ATUAL.getMonth()+delta, 1);
+  AGENDA_DIA_SELECIONADO = null;
+  renderAgenda();
+}
+
+const MESES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DOW_PT = ["D","S","T","Q","Q","S","S"];
+
+function renderAgenda(){
+  const ano = AGENDA_MES_ATUAL.getFullYear();
+  const mes = AGENDA_MES_ATUAL.getMonth();
+  document.getElementById('agenda-mes-label').textContent = `${MESES_PT[mes]} ${ano}`;
+
+  const primeiroDia = new Date(ano, mes, 1);
+  const ultimoDia = new Date(ano, mes+1, 0);
+  const offset = primeiroDia.getDay();
+  const hoje = todayISO();
+
+  let html = DOW_PT.map(d=>`<div class="agenda-dow">${d}</div>`).join('');
+  for(let i=0;i<offset;i++) html += `<div class="agenda-day vazio"></div>`;
+
+  for(let d=1; d<=ultimoDia.getDate(); d++){
+    const iso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const reunioesDoDia = AGENDA_REUNIOES.filter(r=>r.data===iso);
+    const classes = ['agenda-day'];
+    if(reunioesDoDia.length) classes.push('tem-reuniao');
+    if(iso===hoje) classes.push('hoje');
+    if(iso===AGENDA_DIA_SELECIONADO) classes.push('selecionado');
+    let nomeLabel = '';
+    if(reunioesDoDia.length){
+      const nomes = [...new Set(reunioesDoDia.map(r=>r.autor).filter(Boolean))];
+      nomeLabel = nomes.length ? escapeHtml(nomes.join(', ')) : '';
+    }
+    html += `<div class="${classes.join(' ')}" onclick="selecionarDiaAgenda('${iso}')">${d}${nomeLabel?`<span class="reuniao-nome">${nomeLabel}</span>`:''}</div>`;
+  }
+  document.getElementById('agenda-grid').innerHTML = html;
+  renderAgendaDiaDetalhe();
+}
+
+function selecionarDiaAgenda(iso){
+  AGENDA_DIA_SELECIONADO = (AGENDA_DIA_SELECIONADO===iso) ? null : iso;
+  renderAgenda();
+}
+
+function renderAgendaDiaDetalhe(){
+  const el = document.getElementById('agenda-dia-detalhe');
+  if(!AGENDA_DIA_SELECIONADO){ el.innerHTML = ''; return; }
+  const doDia = AGENDA_REUNIOES.filter(r=>r.data===AGENDA_DIA_SELECIONADO)
+    .sort((a,b)=> (a.hora||'99:99') < (b.hora||'99:99') ? -1 : 1);
+  el.innerHTML = `
+    <div class="agenda-dia-card">
+      <div style="font-weight:600; font-size:13px; margin-bottom:8px;">${fmtData(AGENDA_DIA_SELECIONADO)}</div>
+      ${doDia.length ? doDia.map(r=>`
+        <div class="tl-item">
+          <div class="tl-top" style="cursor:pointer;" onclick="abrirDetalhe('${r.contato_id}')"><span class="tl-autor">${r.hora ? r.hora+' · ' : ''}${escapeHtml(r.contato_nome)}</span><span>${escapeHtml(r.autor||'')}</span></div>
+          <div class="tl-resumo" style="cursor:pointer;" onclick="abrirDetalhe('${r.contato_id}')">${escapeHtml(r.resumo||'')}</div>
+          ${r.fonte==='agendada' ? `<button class="btn small" style="background:#fff; color:var(--coral); border-color:var(--coral); margin-top:6px;" onclick="cancelarReuniaoDireto('${r.contato_id}')">Cancelar reunião</button>` : ''}
+        </div>
+      `).join('') : '<div class="empty">Nenhuma reunião nesse dia.</div>'}
+    </div>`;
+}
+
+async function cancelarReuniaoDireto(contatoId){
+  if(!confirm('Cancelar esta reunião agendada?')) return;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: null, reuniao_hora: null, reuniao_autor: null }).eq('id', contatoId);
+  if(error){ toast('Erro ao cancelar reunião'); console.error(error); return; }
+  toast('Reunião cancelada');
+  await carregarContatos();
+  await carregarReunioes();
+  renderAgenda();
+}
+
+// ---------- Mensagens modelo ----------
+let MODELOS = [];
+let MODELO_EDITANDO_ID = null;
+
+async function abrirMensagens(){
+  document.getElementById('header-title').textContent = 'Mensagens modelo';
+  document.getElementById('header-sub').textContent = 'Textos prontos pra copiar e colar';
+  mostrarView('mensagens');
+  await carregarModelos();
+}
+
+async function carregarModelos(){
+  const { data, error } = await sb.from('crm_mensagens').select('*').order('created_at', { ascending:false });
+  if(error){ toast('Erro ao carregar modelos'); console.error(error); MODELOS = []; }
+  else MODELOS = data || [];
+  document.getElementById('count-mensagens').textContent = MODELOS.length;
+  renderModelos();
+}
+
+function renderModelos(){
+  const el = document.getElementById('lista-modelos');
+  if(!MODELOS.length){
+    el.innerHTML = `<div class="empty">Nenhum modelo cadastrado ainda. Toque em "+ Novo modelo" pra criar.</div>`;
+    return;
+  }
+  el.innerHTML = MODELOS.map(m => `
+    <div class="modelo-card">
+      <div class="modelo-titulo">${escapeHtml(m.titulo)}</div>
+      <div class="modelo-conteudo">${escapeHtml(m.conteudo)}</div>
+      <div class="modelo-actions">
+        <button class="btn whatsapp small" onclick="copiarModelo('${m.id}')">Copiar</button>
+        <button class="btn ghost small" onclick="editarModelo('${m.id}')">Editar</button>
+        <button class="btn small" style="color:var(--coral); border-color:var(--coral);" onclick="excluirModelo('${m.id}')">Excluir</button>
+      </div>
+    </div>`).join('');
+}
+
+async function copiarModelo(id){
+  const m = MODELOS.find(x=>x.id===id);
+  if(!m) return;
+  try{
+    await navigator.clipboard.writeText(m.conteudo);
+    toast('Mensagem copiada');
+  }catch(e){
+    toast('Não foi possível copiar automaticamente. Selecione o texto manualmente.', 4000);
+  }
+}
+
+function abrirNovoModelo(){
+  MODELO_EDITANDO_ID = null;
+  document.getElementById('modelo-titulo-sheet').textContent = 'Novo modelo';
+  document.getElementById('mo-titulo').value = '';
+  document.getElementById('mo-conteudo').value = '';
+  document.getElementById('overlay-modelo').classList.add('show');
+}
+
+function editarModelo(id){
+  const m = MODELOS.find(x=>x.id===id);
+  if(!m) return;
+  MODELO_EDITANDO_ID = id;
+  document.getElementById('modelo-titulo-sheet').textContent = 'Editar modelo';
+  document.getElementById('mo-titulo').value = m.titulo;
+  document.getElementById('mo-conteudo').value = m.conteudo;
+  document.getElementById('overlay-modelo').classList.add('show');
+}
+
+async function salvarModelo(){
+  const titulo = document.getElementById('mo-titulo').value.trim();
+  const conteudo = document.getElementById('mo-conteudo').value.trim();
+  if(!titulo || !conteudo){ toast('Preencha título e mensagem'); return; }
+
+  if(MODELO_EDITANDO_ID){
+    const { error } = await sb.from('crm_mensagens').update({ titulo, conteudo }).eq('id', MODELO_EDITANDO_ID);
+    if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+    toast('Modelo atualizado');
+  } else {
+    const { error } = await sb.from('crm_mensagens').insert({ titulo, conteudo });
+    if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+    toast('Modelo criado');
+  }
+  fecharOverlay('overlay-modelo');
+  carregarModelos();
+}
+
+async function excluirModelo(id){
+  if(!confirm('Excluir este modelo de mensagem?')) return;
+  const { error } = await sb.from('crm_mensagens').delete().eq('id', id);
+  if(error){ toast('Erro ao excluir'); console.error(error); return; }
+  toast('Modelo excluído');
+  carregarModelos();
+}
+
+// ---------- Gráfico de Contatos ----------
+let STATS_MODO = 'semana';
+let STATS_MES_SELECIONADO = null; // 'YYYY-MM'
+
+function abrirEstatisticas(){
+  document.getElementById('header-title').textContent = 'Gráfico de Contatos';
+  document.getElementById('header-sub').textContent = 'Contatos adicionados por dia';
+  mostrarView('stats');
+  if(!STATS_MES_SELECIONADO){
+    const hoje = new Date();
+    STATS_MES_SELECIONADO = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  }
+  renderStats();
+}
+
+document.getElementById('stats-filtros').addEventListener('click', e=>{
+  if(!e.target.classList.contains('chip')) return;
+  document.querySelectorAll('#stats-filtros .chip').forEach(c=>c.classList.remove('active'));
+  e.target.classList.add('active');
+  STATS_MODO = e.target.dataset.modo;
+  document.getElementById('stats-mes-input').style.display = STATS_MODO==='selecionar' ? 'block' : 'none';
+  if(STATS_MODO==='selecionar'){
+    document.getElementById('stats-mes-input').value = STATS_MES_SELECIONADO;
+  }
+  renderStats();
+});
+
+document.getElementById('stats-mes-input').addEventListener('change', e=>{
+  STATS_MES_SELECIONADO = e.target.value;
+  renderStats();
+});
+
+function diasDoModoStats(){
+  const dias = [];
+  if(STATS_MODO === 'semana'){
+    const hoje = new Date();
+    const dow = hoje.getDay();
+    const diffSegunda = (dow===0 ? -6 : 1-dow);
+    const segunda = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()+diffSegunda);
+    for(let i=0;i<7;i++){
+      const d = new Date(segunda.getFullYear(), segunda.getMonth(), segunda.getDate()+i);
+      dias.push(d);
+    }
+  } else {
+    let ano, mes;
+    if(STATS_MODO === 'mes'){
+      const hoje = new Date();
+      ano = hoje.getFullYear(); mes = hoje.getMonth();
+    } else {
+      const [y,m] = (STATS_MES_SELECIONADO||'').split('-');
+      ano = parseInt(y); mes = parseInt(m)-1;
+    }
+    const ultimoDia = new Date(ano, mes+1, 0).getDate();
+    for(let d=1; d<=ultimoDia; d++) dias.push(new Date(ano, mes, d));
+  }
+  return dias;
+}
+
+function isoLocal(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function renderStats(){
+  const dias = diasDoModoStats();
+  const contagemPorDia = dias.map(d=>{
+    const iso = isoLocal(d);
+    return CONTATOS.filter(c => c.created_at && c.created_at.slice(0,10) === iso).length;
+  });
+  const max = Math.max(1, ...contagemPorDia);
+  const total = contagemPorDia.reduce((a,b)=>a+b,0);
+  const vertical = dias.length > 10;
+
+  let periodoLabel = '';
+  if(STATS_MODO==='semana') periodoLabel = 'nesta semana';
+  else if(STATS_MODO==='mes') periodoLabel = `em ${MESES_PT[new Date().getMonth()]}`;
+  else { const [y,m] = (STATS_MES_SELECIONADO||'').split('-'); periodoLabel = m ? `em ${MESES_PT[parseInt(m)-1]} de ${y}` : ''; }
+
+  document.getElementById('stats-resumo').textContent = `${total} contato(s) adicionado(s) ${periodoLabel}`;
+  document.getElementById('count-stats-total').textContent = CONTATOS.length;
+
+  document.getElementById('stats-chart').innerHTML = dias.map((d,i)=>{
+    const count = contagemPorDia[i];
+    const alturaPct = Math.round((count / max) * 100);
+    let label;
+    if(STATS_MODO==='semana'){
+      label = `${DOW_PT[d.getDay()]}<br>${d.getDate()}`;
+    } else {
+      label = `${d.getDate()}`;
+    }
+    return `
+      <div class="stats-bar-wrap">
+        <div class="stats-bar-count">${count>0?count:''}</div>
+        <div class="stats-bar ${count===0?'zero':''}" style="height:${Math.max(alturaPct,count>0?4:1)}%;"></div>
+        <div class="stats-bar-label ${vertical?'vertical':''}">${label}</div>
+      </div>`;
+  }).join('');
+}
+
+// ---------- Adição futura ----------
+let FUTUROS = [];
+let FUTURO_ATIVO = null;
+let FUTURO_EFETIVANDO_ID = null;
+
+async function abrirFuturos(){
+  document.getElementById('header-title').textContent = 'Adição futura';
+  document.getElementById('header-sub').textContent = 'Pessoas pra considerar adicionar depois, por usuário';
+  mostrarView('futuros');
+  await carregarFuturos();
+}
+
+async function carregarFuturos(){
+  const { data, error } = await sb.from('crm_futuros').select('*').order('created_at', { ascending:false });
+  if(error){ toast('Erro ao carregar lista'); console.error(error); FUTUROS = []; }
+  else FUTUROS = data || [];
+  document.getElementById('count-futuros').textContent = FUTUROS.length + naoChamados().length;
+  renderFuturos();
+}
+
+function renderFuturos(){
+  const el = document.getElementById('lista-futuros');
+  const nc = naoChamados();
+  const buscaNC = (document.getElementById('busca-futuros')?.value || '').toLowerCase();
+  const ncFiltrados = buscaNC ? nc.filter(c=>(c.nome||'').toLowerCase().includes(buscaNC) || (c.empresa||'').toLowerCase().includes(buscaNC)) : nc;
+  const blocoNC = nc.length ? `
+    <div class="grupo-usuario-header">Arquitetos ainda não chamados · ${nc.length}</div>
+    <div class="searchbar"><input type="text" id="busca-futuros" placeholder="Buscar arquiteto ainda não chamado..." value="${escapeHtml(buscaNC)}" oninput="renderFuturosFoco()"></div>
+    <p class="card-meta" style="margin:0 0 10px;">Passam para Arquitetos quando recebem as 3 mensagens pela página de prospecção (ou quando você registra uma interação ou lembrete).</p>
+    ${ncFiltrados.length ? ncFiltrados.map(cardContato).join('') : `<div class="empty">Nenhum encontrado.</div>`}
+  ` : '';
+  if(!FUTUROS.length){
+    el.innerHTML = blocoNC || `<div class="empty">Nenhuma adição futura registrada ainda.</div>`;
+    return;
+  }
+  const grupos = {};
+  FUTUROS.forEach(f=>{
+    const chave = f.autor || 'Sem usuário';
+    if(!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(f);
+  });
+  const ordemUsuarios = Object.keys(USUARIOS).concat(['Sem usuário']);
+  const chavesOrdenadas = Object.keys(grupos).sort((a,b)=> ordemUsuarios.indexOf(a) - ordemUsuarios.indexOf(b));
+
+  el.innerHTML = chavesOrdenadas.map(chave => `
+    <div class="grupo-usuario-header">${escapeHtml(chave)} · ${grupos[chave].length}</div>
+    ${grupos[chave].map(f => `
+      <div class="card" onclick="abrirDetalheFuturo('${f.id}')">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${escapeHtml(f.nome)}</div>
+            <div class="card-meta">
+              ${f.tipo ? `<span>${TIPO_LABEL[f.tipo]||f.tipo}</span>` : ''}
+              ${f.empresa ? `<span>${escapeHtml(f.empresa)}</span>` : ''}
+              ${f.observacao ? `<span>${escapeHtml(f.observacao)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        ${f.telefone ? `<div class="card-actions"><a class="btn whatsapp small" href="${whatsappLink(f.telefone)}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a></div>` : ''}
+      </div>
+    `).join('')}
+  `).join('') + blocoNC;
+}
+
+function renderFuturosFoco(){
+  const inp = document.getElementById('busca-futuros');
+  const pos = inp ? inp.selectionStart : null;
+  renderFuturos();
+  const novo = document.getElementById('busca-futuros');
+  if(novo){ novo.focus(); if(pos!==null) novo.setSelectionRange(pos,pos); }
+}
+
+function abrirNovoFuturo(){
+  ['nf-nome','nf-empresa','nf-telefone','nf-email','nf-obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nf-tipo').value = '';
+  document.getElementById('overlay-futuro').classList.add('show');
+}
+
+async function salvarFuturo(){
+  const nome = document.getElementById('nf-nome').value.trim();
+  if(!nome){ toast('Informe o nome'); return; }
+  const payload = {
+    nome,
+    tipo: document.getElementById('nf-tipo').value || null,
+    empresa: document.getElementById('nf-empresa').value.trim() || null,
+    telefone: document.getElementById('nf-telefone').value.trim() || null,
+    email: document.getElementById('nf-email').value.trim() || null,
+    observacao: document.getElementById('nf-obs').value.trim() || null,
+    autor: USUARIO_ATUAL || null
+  };
+  const { error } = await sb.from('crm_futuros').insert(payload);
+  if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+  fecharOverlay('overlay-futuro');
+  toast('Adicionado à lista');
+  carregarFuturos();
+}
+
+function abrirDetalheFuturo(id){
+  const f = FUTUROS.find(x=>x.id===id);
+  if(!f) return;
+  FUTURO_ATIVO = f;
+  document.getElementById('fd-nome').value = f.nome;
+  document.getElementById('fd-meta').textContent = `Adicionado por ${f.autor || 'desconhecido'}`;
+  document.getElementById('fd-tipo').value = f.tipo || '';
+  document.getElementById('fd-empresa').value = f.empresa || '';
+  document.getElementById('fd-telefone').value = f.telefone || '';
+  document.getElementById('fd-email').value = f.email || '';
+  document.getElementById('fd-obs').value = f.observacao || '';
+  document.getElementById('overlay-futuro-detalhe').classList.add('show');
+}
+
+async function atualizarNomeFuturo(){
+  if(!FUTURO_ATIVO) return;
+  const novoNome = document.getElementById('fd-nome').value.trim();
+  if(!novoNome){ document.getElementById('fd-nome').value = FUTURO_ATIVO.nome; return; }
+  await atualizarCampoFuturo('nome', novoNome);
+}
+
+async function atualizarCampoFuturo(campo, valor){
+  if(!FUTURO_ATIVO) return;
+  const v = (typeof valor === 'string' ? valor.trim() : valor) || null;
+  if(FUTURO_ATIVO[campo] === v) return;
+  const { error } = await sb.from('crm_futuros').update({ [campo]: v }).eq('id', FUTURO_ATIVO.id);
+  if(error){ toast('Erro ao salvar'); console.error(error); return; }
+  FUTURO_ATIVO[campo] = v;
+  carregarFuturos();
+}
+
+async function excluirFuturo(){
+  if(!FUTURO_ATIVO) return;
+  if(!confirm('Remover esta pessoa da lista de adição futura?')) return;
+  const { error } = await sb.from('crm_futuros').delete().eq('id', FUTURO_ATIVO.id);
+  if(error){ toast('Erro ao excluir'); console.error(error); return; }
+  fecharOverlay('overlay-futuro-detalhe');
+  toast('Removido da lista');
+  carregarFuturos();
+}
+
+function efetivarFuturo(){
+  if(!FUTURO_ATIVO) return;
+  FUTURO_EFETIVANDO_ID = FUTURO_ATIVO.id;
+  fecharOverlay('overlay-futuro-detalhe');
+  ['nc-nome','nc-empresa','nc-telefone','nc-email','nc-obs','nc-followup'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nc-nome').value = FUTURO_ATIVO.nome;
+  document.getElementById('nc-empresa').value = FUTURO_ATIVO.empresa || '';
+  document.getElementById('nc-telefone').value = FUTURO_ATIVO.telefone || '';
+  document.getElementById('nc-email').value = FUTURO_ATIVO.email || '';
+  document.getElementById('nc-obs').value = FUTURO_ATIVO.observacao || '';
+  document.getElementById('nc-tipo').value = FUTURO_ATIVO.tipo || 'conhecido';
+  document.getElementById('nc-status').value = 'aguardando';
+  document.getElementById('overlay-novo').classList.add('show');
+}
+
+// ---------- Novo contato ----------
+function abrirNovoContato(){
+  ['nc-nome','nc-empresa','nc-telefone','nc-email','nc-obs','nc-followup'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nc-tipo').value = CATEGORIA_DEFAULT_TIPO || 'corretor';
+  document.getElementById('nc-status').value = 'aguardando';
+  document.getElementById('overlay-novo').classList.add('show');
+}
+
+async function salvarNovoContato(){
+  const nome = document.getElementById('nc-nome').value.trim();
+  if(!nome){ toast('Informe o nome'); return; }
+  const payload = {
+    nome,
+    tipo: document.getElementById('nc-tipo').value,
+    status: document.getElementById('nc-status').value,
+    empresa: document.getElementById('nc-empresa').value.trim() || null,
+    telefone: document.getElementById('nc-telefone').value.trim() || null,
+    email: document.getElementById('nc-email').value.trim() || null,
+    observacoes: document.getElementById('nc-obs').value.trim() || null,
+    proximo_followup: document.getElementById('nc-followup').value || null,
+    ultima_interacao_data: todayISO(),
+    ultima_interacao_resumo: 'Contato cadastrado',
+    ultima_interacao_autor: USUARIO_ATUAL || null
+  };
+  const { error } = await sb.from('crm_contatos').insert(payload);
+  if(error){ toast('Erro: ' + error.message, 6000); console.error(error); return; }
+
+  if(FUTURO_EFETIVANDO_ID){
+    await sb.from('crm_futuros').delete().eq('id', FUTURO_EFETIVANDO_ID);
+    FUTURO_EFETIVANDO_ID = null;
+    carregarFuturos();
+  }
+
+  fecharOverlay('overlay-novo');
+  toast('Contato adicionado');
+  await carregarContatos();
+  if(document.getElementById('view-lista').style.display !== 'none'){
+    document.getElementById('header-sub').textContent = `${contarPorTipo(CATEGORIA_ATIVA)} contato(s)`;
+  }
+}
+
+// ---------- Detalhe / interação ----------
+async function abrirDetalhe(id){
+  const c = CONTATOS.find(x=>x.id===id);
+  if(!c) return;
+  CONTATO_ATIVO = c;
+  document.getElementById('det-nome').value = c.nome;
+  document.getElementById('det-meta').textContent = `${TIPO_LABEL[c.tipo]||c.tipo}${c.empresa ? ' · '+c.empresa : ''}`;
+  document.getElementById('det-status').value = c.status;
+  document.getElementById('det-telefone').value = c.telefone || '';
+  document.getElementById('det-lembrete').value = c.proximo_followup || '';
+  document.getElementById('det-reuniao-data').value = c.reuniao_data || '';
+  document.getElementById('det-reuniao-hora').value = c.reuniao_hora || '';
+  document.getElementById('reuniao-box').style.display = c.status === 'agendado' ? 'flex' : 'none';
+  document.getElementById('ni-autor').value = USUARIO_ATUAL || 'Willian';
+  document.getElementById('ni-tipo').value = 'whatsapp';
+  document.getElementById('ni-resumo').value = '';
+
+  const { data, error } = await sb.from('crm_interacoes').select('*').eq('contato_id', id).order('data', { ascending:false }).order('created_at', { ascending:false });
+  INTERACOES_ATIVAS = data || [];
+  if(error){ document.getElementById('det-timeline').innerHTML = `<div class="empty">Erro ao carregar histórico.</div>`; }
+  else renderTimeline();
+
+  document.getElementById('overlay-detalhe').classList.add('show');
+}
+
+async function atualizarStatus(){
+  if(!CONTATO_ATIVO) return;
+  const novoStatus = document.getElementById('det-status').value;
+  document.getElementById('reuniao-box').style.display = novoStatus === 'agendado' ? 'flex' : 'none';
+  const { error } = await sb.from('crm_contatos').update({ status: novoStatus }).eq('id', CONTATO_ATIVO.id);
+  if(!error){ CONTATO_ATIVO.status = novoStatus; toast('Status atualizado'); carregarContatos(); }
+}
+
+async function atualizarNome(){
+  if(!CONTATO_ATIVO) return;
+  const novoNome = document.getElementById('det-nome').value.trim();
+  if(!novoNome){ document.getElementById('det-nome').value = CONTATO_ATIVO.nome; return; }
+  if(novoNome === CONTATO_ATIVO.nome) return;
+  const { error } = await sb.from('crm_contatos').update({ nome: novoNome }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao salvar nome'); console.error(error); return; }
+  CONTATO_ATIVO.nome = novoNome;
+  toast('Nome atualizado');
+  carregarContatos();
+}
+
+async function atualizarTelefone(){
+  if(!CONTATO_ATIVO) return;
+  const val = document.getElementById('det-telefone').value.trim();
+  await sb.from('crm_contatos').update({ telefone: val || null }).eq('id', CONTATO_ATIVO.id);
+  carregarContatos();
+}
+
+async function salvarReuniao(){
+  if(!CONTATO_ATIVO) return;
+  const data = document.getElementById('det-reuniao-data').value || null;
+  const hora = document.getElementById('det-reuniao-hora').value || null;
+  const autor = USUARIO_ATUAL || null;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: data, reuniao_hora: hora, reuniao_autor: autor }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao salvar reunião'); console.error(error); return; }
+  CONTATO_ATIVO.reuniao_data = data;
+  CONTATO_ATIVO.reuniao_hora = hora;
+  CONTATO_ATIVO.reuniao_autor = autor;
+  toast('Reunião salva');
+  carregarContatos();
+}
+
+async function cancelarReuniao(){
+  if(!CONTATO_ATIVO) return;
+  if(!confirm('Cancelar esta reunião agendada?')) return;
+  const { error } = await sb.from('crm_contatos').update({ reuniao_data: null, reuniao_hora: null, reuniao_autor: null }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao cancelar reunião'); console.error(error); return; }
+  CONTATO_ATIVO.reuniao_data = null;
+  CONTATO_ATIVO.reuniao_hora = null;
+  CONTATO_ATIVO.reuniao_autor = null;
+  document.getElementById('det-reuniao-data').value = '';
+  document.getElementById('det-reuniao-hora').value = '';
+  toast('Reunião cancelada');
+  carregarContatos();
+}
+
+async function salvarLembrete(){
+  if(!CONTATO_ATIVO) return;
+  const data = document.getElementById('det-lembrete').value || null;
+  const { error } = await sb.from('crm_contatos').update({ proximo_followup: data }).eq('id', CONTATO_ATIVO.id);
+  if(error){ toast('Erro ao salvar lembrete'); console.error(error); return; }
+  CONTATO_ATIVO.proximo_followup = data;
+  toast('Lembrete salvo');
+  carregarContatos();
+}
+
+function renderTimeline(){
+  const tl = document.getElementById('det-timeline');
+  if(!INTERACOES_ATIVAS.length){
+    tl.innerHTML = `<div class="empty">Nenhuma atualização registrada ainda.</div>`;
+    return;
+  }
+  tl.innerHTML = INTERACOES_ATIVAS.map(i=>{
+    if(i.id === EDITANDO_INTERACAO_ID){
+      return `
+      <div class="tl-item">
+        <div class="tl-edit-form">
+          <div class="row2">
+            <select id="edit-autor-${i.id}">
+              ${Object.keys(USUARIOS).map(u=>`<option value="${u}" ${u===i.autor?'selected':''}>${u}</option>`).join('')}
+            </select>
+            <select id="edit-tipo-${i.id}">
+              ${['whatsapp','ligacao','reuniao','email','outro'].map(t=>`<option value="${t}" ${t===i.tipo?'selected':''}>${t}</option>`).join('')}
+            </select>
+          </div>
+          <textarea id="edit-resumo-${i.id}">${escapeHtml(i.resumo||'')}</textarea>
+          <div class="tl-edit-actions">
+            <button class="btn primary small" onclick="salvarEdicaoInteracao('${i.id}')">Salvar</button>
+            <button class="btn ghost small" onclick="cancelarEdicaoInteracao()">Cancelar</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    return `
+      <div class="tl-item">
+        <div class="tl-top">
+          <span class="mono">${fmtData(i.data)}</span>
+          <span class="tl-autor">${escapeHtml(i.autor||'—')}</span>
+          <span class="tl-actions">
+            <button onclick="editarInteracao('${i.id}')" title="Editar">✎</button>
+            <button onclick="excluirInteracao('${i.id}')" title="Excluir">🗑</button>
+          </span>
+        </div>
+        <div class="tl-resumo">${escapeHtml(i.resumo||'')}</div>
+      </div>`;
+  }).join('');
+}
+
+function editarInteracao(id){
+  EDITANDO_INTERACAO_ID = id;
+  renderTimeline();
+}
+
+function cancelarEdicaoInteracao(){
+  EDITANDO_INTERACAO_ID = null;
+  renderTimeline();
+}
+
+async function salvarEdicaoInteracao(id){
+  const autor = document.getElementById(`edit-autor-${id}`).value;
+  const tipo = document.getElementById(`edit-tipo-${id}`).value;
+  const resumo = document.getElementById(`edit-resumo-${id}`).value.trim();
+  const { error } = await sb.from('crm_interacoes').update({ autor, tipo, resumo }).eq('id', id);
+  if(error){ toast('Erro ao salvar edição'); console.error(error); return; }
+  const item = INTERACOES_ATIVAS.find(x=>x.id===id);
+  if(item){ item.autor=autor; item.tipo=tipo; item.resumo=resumo; }
+  EDITANDO_INTERACAO_ID = null;
+  renderTimeline();
+  toast('Atualização editada');
+  await sincronizarUltimaInteracao();
+  carregarContatos();
+}
+
+async function excluirInteracao(id){
+  if(!confirm('Excluir esta atualização do histórico?')) return;
+  const { error } = await sb.from('crm_interacoes').delete().eq('id', id);
+  if(error){ toast('Erro ao excluir'); console.error(error); return; }
+  INTERACOES_ATIVAS = INTERACOES_ATIVAS.filter(x=>x.id!==id);
+  renderTimeline();
+  toast('Atualização excluída');
+  await sincronizarUltimaInteracao();
+  carregarContatos();
+}
+
+// Recalcula ultima_interacao_data/resumo do contato com base no histórico restante
+async function sincronizarUltimaInteracao(){
+  if(!CONTATO_ATIVO) return;
+  const maisRecente = INTERACOES_ATIVAS[0] || null;
+  const payload = {
+    ultima_interacao_data: maisRecente ? maisRecente.data : null,
+    ultima_interacao_resumo: maisRecente ? maisRecente.resumo : null,
+    ultima_interacao_autor: maisRecente ? maisRecente.autor : null
+  };
+  await sb.from('crm_contatos').update(payload).eq('id', CONTATO_ATIVO.id);
+}
+
+async function salvarInteracao(){
+  if(!CONTATO_ATIVO) return;
+  const resumo = document.getElementById('ni-resumo').value.trim();
+  const tipo = document.getElementById('ni-tipo').value;
+  const autor = document.getElementById('ni-autor').value;
+  const hoje = todayISO();
+
+  const { error: e1 } = await sb.from('crm_interacoes').insert({
+    contato_id: CONTATO_ATIVO.id, data: hoje, tipo, resumo, autor
+  });
+  if(e1){ toast('Erro ao salvar atualização'); console.error(e1); return; }
+
+  const updatePayload = {
+    ultima_interacao_data: hoje,
+    ultima_interacao_resumo: resumo,
+    ultima_interacao_autor: autor
+  };
+
+  const { error: e2 } = await sb.from('crm_contatos').update(updatePayload).eq('id', CONTATO_ATIVO.id);
+  if(e2){ console.error(e2); }
+
+  toast('Atualização registrada');
+  fecharOverlay('overlay-detalhe');
+  carregarContatos();
+}
+
+function fecharOverlay(id){
+  document.getElementById(id).classList.remove('show');
+  if(id === 'overlay-novo') FUTURO_EFETIVANDO_ID = null;
+}
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('show'); });
+});
+
+if(USUARIO_ATUAL){ iniciarApp(); }
+</script>
+</body>
+</html>
