@@ -838,7 +838,7 @@ function renderListaContatos(){
   el.innerHTML = lista.length ? lista.map(cardContato).join('') : `<div class="empty">Nenhum contato encontrado.</div>`;
 }
 
-function cardContato(c){
+function cardContato(c, comExcluir){
   const wl = whatsappLink(c.telefone);
   return `
   <div class="card" onclick="abrirDetalhe('${c.id}')">
@@ -855,6 +855,7 @@ function cardContato(c){
     <div class="card-actions">
       ${wl ? `<a class="btn whatsapp small" href="${wl}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a>` : ''}
       <button class="btn ghost small" onclick="event.stopPropagation(); abrirDetalhe('${c.id}')">Ver / atualizar</button>
+      ${comExcluir ? `<button class="btn small" style="color:var(--coral); border-color:var(--coral);" onclick="event.stopPropagation(); excluirContatoNaoChamado('${c.id}')">Excluir</button>` : ''}
     </div>
   </div>`;
 }
@@ -1213,7 +1214,7 @@ function renderFuturos(){
     <div class="grupo-usuario-header">Arquitetos ainda não chamados · ${nc.length}</div>
     <div class="searchbar"><input type="text" id="busca-futuros" placeholder="Buscar arquiteto ainda não chamado..." value="${escapeHtml(buscaNC)}" oninput="renderFuturosFoco()"></div>
     <p class="card-meta" style="margin:0 0 10px;">Passam para Arquitetos quando recebem as 3 mensagens pela página de prospecção (ou quando você registra uma interação ou lembrete).</p>
-    ${ncFiltrados.length ? ncFiltrados.map(cardContato).join('') : `<div class="empty">Nenhum encontrado.</div>`}
+    ${ncFiltrados.length ? ncFiltrados.map(c=>cardContato(c, true)).join('') : `<div class="empty">Nenhum encontrado.</div>`}
   ` : '';
   if(!FUTUROS.length){
     el.innerHTML = blocoNC || `<div class="empty">Nenhuma adição futura registrada ainda.</div>`;
@@ -1242,7 +1243,10 @@ function renderFuturos(){
             </div>
           </div>
         </div>
-        ${f.telefone ? `<div class="card-actions"><a class="btn whatsapp small" href="${whatsappLink(f.telefone)}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a></div>` : ''}
+        <div class="card-actions">
+          ${f.telefone ? `<a class="btn whatsapp small" href="${whatsappLink(f.telefone)}" target="_blank" onclick="event.stopPropagation()">WhatsApp</a>` : ''}
+          <button class="btn small" style="color:var(--coral); border-color:var(--coral);" onclick="event.stopPropagation(); excluirFuturoPorId('${f.id}')">Excluir</button>
+        </div>
       </div>
     `).join('')}
   `).join('') + blocoNC;
@@ -1320,6 +1324,29 @@ async function excluirFuturo(){
   fecharOverlay('overlay-futuro-detalhe');
   toast('Removido da lista');
   carregarFuturos();
+}
+
+// Exclusão direta pelos cards da tela "Adição futura"
+async function excluirFuturoPorId(id){
+  const f = FUTUROS.find(x=>x.id===id);
+  if(!f) return;
+  if(!confirm(`Excluir ${f.nome} da lista de adição futura?\n\nEssa ação não pode ser desfeita.`)) return;
+  const { data, error } = await sb.from('crm_futuros').delete().eq('id', id).select('id');
+  if(error || !data || !data.length){ toast('Não foi possível excluir'); console.error(error); return; }
+  toast('Removido da lista');
+  carregarFuturos();
+}
+
+async function excluirContatoNaoChamado(id){
+  const c = CONTATOS.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm(`Excluir ${c.nome} da lista de arquitetos ainda não chamados?\n\nO contato será apagado do Mais Obras e essa ação não pode ser desfeita.`)) return;
+  const { data, error } = await sb.from('crm_contatos').delete().eq('id', id).select('id');
+  if(error || !data || !data.length){ toast('Não foi possível excluir'); console.error(error); return; }
+  CONTATOS = CONTATOS.filter(x=>x.id!==id);
+  toast('Contato excluído');
+  renderContadoresHome();
+  renderFuturos();
 }
 
 function efetivarFuturo(){
